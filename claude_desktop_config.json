@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-memory": {
+      "command": "/Users/mac/Downloads/MCP/start_mcp_server.sh",
+      "env": {
+        "PYTHONPATH": "/Users/mac/Downloads/MCP",
+        "MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

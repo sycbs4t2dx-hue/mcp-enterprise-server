@@ -1,0 +1,233 @@
+# 项目基础配置
+project:
+  name: "mcp-core"
+  version: "1.0.0"
+  environment: "development"  # development/testing/production
+
+# 服务配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: true  # 仅开发环境
+
+# 数据库配置 (MySQL)
+database:
+  url: "mysql+pymysql://mcp_user:mcp_password@localhost:3306/mcp_db?charset=utf8mb4"
+  pool_size: 20
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 3600
+  echo: false  # SQL日志,调试时改为true
+
+# Redis配置
+redis:
+  url: "redis://localhost:6379/0"
+  max_connections: 50
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  decode_responses: false
+
+# 向量数据库配置
+vector_db:
+  type: "milvus"  # milvus/faiss
+  milvus:
+    host: "localhost"
+    port: 19530
+    timeout: 30
+    index_type: "HNSW"
+    metric_type: "COSINE"
+    index_params:
+      M: 16
+      efConstruction: 200
+    search_params:
+      ef: 64
+  faiss:
+    index_path: "./data/faiss_index"
+    dimension: 768
+    index_type: "IndexHNSWFlat"
+
+# 记忆管理配置
+memory:
+  # 短期记忆(Redis)
+  short_term:
+    ttl: 86400  # 24小时
+    max_window: 20
+    min_window: 5
+    auto_extend: true
+
+  # 中期记忆(Milvus)
+  mid_term:
+    ttl: 2592000  # 30天
+    auto_archive: true
+    archive_threshold: 0.3  # 访问频率低于30%自动归档
+
+  # 长期记忆(PostgreSQL)
+  long_term:
+    min_confidence: 0.80
+    auto_update: true
+
+  # 检索配置
+  retrieval:
+    strategy: "hybrid"  # hybrid/semantic_only/keyword_only
+    default_top_k: 5
+    max_top_k: 20
+    cache_enabled: true
+    cache_ttl: 604800  # 7天
+
+# Token优化配置
+token_optimization:
+  enabled: true
+  compression_ratio: 0.2
+  cache_ttl: 604800
+
+  # 模型配置
+  models:
+    code_model: "microsoft/codebert-base"
+    text_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+  # 压缩策略
+  compression:
+    min_length: 200  # 少于200字符不压缩
+    max_length: 10000  # 最大处理长度
+    preserve_code_structure: true
+
+# 幻觉抑制配置
+anti_hallucination:
+  enabled: true
+  base_threshold: 0.65
+
+  # 自适应阈值
+  adaptive_threshold:
+    enabled: true
+    min_threshold: 0.40
+    max_threshold: 0.85
+
+  # 检测配置
+  detection:
+    max_retries: 3
+    timeout: 10
+    enable_fact_check: true
+
+  # 告警配置
+  alerts:
+    enabled: true
+    threshold: 0.10  # 幻觉率超过10%告警
+
+# 安全配置
+security:
+  # JWT配置
+  jwt:
+    secret_key: "change-this-in-production-use-secrets-manager"
+    algorithm: "HS256"
+    access_token_expire_minutes: 1440  # 24小时
+
+  # 加密配置
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 90
+
+  # CORS配置
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+    allow_credentials: true
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+  # 速率限制
+  rate_limit:
+    enabled: true
+    requests_per_minute: 100
+    burst: 20
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG/INFO/WARNING/ERROR/CRITICAL
+  format: "json"  # json/text
+  handlers:
+    - type: "file"
+      filename: "./logs/mcp.log"
+      max_bytes: 10485760  # 10MB
+      backup_count: 5
+    - type: "console"
+      colorize: true
+
+  # 敏感信息过滤
+  mask_sensitive: true
+  sensitive_fields:
+    - "password"
+    - "token"
+    - "api_key"
+    - "secret"
+
+# 监控配置
+monitoring:
+  enabled: true
+
+  # Prometheus
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+
+  # 指标收集
+  metrics:
+    prefix: "mcp"
+    collect_system: true
+    collect_business: true
+
+  # 健康检查
+  health_check:
+    enabled: true
+    interval: 30
+    timeout: 10
+
+# 性能配置
+performance:
+  # 连接池
+  connection_pool:
+    db_pool_pre_ping: true
+    redis_connection_pool_class: "BlockingConnectionPool"
+
+  # 批处理
+  batch_processing:
+    enabled: true
+    batch_size: 100
+    batch_timeout: 5
+
+  # 缓存
+  cache:
+    enabled: true
+    backend: "redis"
+    default_ttl: 3600
+
+# 环境特定覆盖
+environments:
+  development:
+    server:
+      reload: true
+    database:
+      echo: true
+    logging:
+      level: "DEBUG"
+
+  testing:
+    database:
+      url: "postgresql://mcp_user:mcp_password@localhost:5432/mcp_test_db"
+    redis:
+      url: "redis://localhost:6379/1"
+
+  production:
+    server:
+      reload: false
+    logging:
+      level: "WARNING"
+    security:
+      cors:
+        origins:
+          - "https://your-production-domain.com"
+    monitoring:
+      enabled: true
