@@ -112,7 +112,32 @@ class RateLimiter:
 # ==================== 企业级MCP服务器 ====================
 
 class MCPEnterpriseServer:
-    """企业级MCP服务器"""
+    """
+    企业级MCP服务器
+
+    功能描述:
+    - 提供生产级的MCP协议服务，支持HTTP与SSE传输
+    - 集成API密钥认证、IP白名单、请求限流与监控统计
+    - 管理端点包括健康检查、统计、连接列表与Prometheus指标
+
+    修改者：zhang
+
+    参数:
+    - host: 监听地址
+    - port: 监听端口
+    - config_file: 配置文件路径（可选）
+    - api_keys: 允许访问的API密钥集合（可选）
+    - allowed_ips: 允许访问的IP白名单集合（可选）
+    - enable_cors: 是否启用CORS
+    - rate_limit: 每窗口允许的最大请求数
+    - max_connections: 允许的最大并发连接数
+
+    返回值:
+    - 无（作为服务器类，提供运行与端点处理方法）
+
+    异常:
+    - 端点处理过程中可能抛出aiohttp相关异常，统一在处理函数中捕获
+    """
 
     def __init__(
         self,
@@ -143,6 +168,8 @@ class MCPEnterpriseServer:
         self.stats = ServerStats()
         self.start_time = datetime.now()
         self.request_history: deque = deque(maxlen=1000)
+        # SSE连接队列
+        self.sse_queues: Dict[str, asyncio.Queue] = {}
 
         # Web应用
         self.app = web.Application()
@@ -171,6 +198,7 @@ class MCPEnterpriseServer:
         # MCP端点
         self.app.router.add_post('/', self.handle_mcp_request)
         self.app.router.add_get('/sse', self.handle_sse_connection)
+        self.app.router.add_post('/messages', self.handle_sse_message)
 
         # 管理端点
         self.app.router.add_get('/health', self.handle_health)
@@ -242,7 +270,22 @@ class MCPEnterpriseServer:
         self.stats.avg_response_time = total_duration / len(self.request_history)
 
     async def handle_mcp_request(self, request):
-        """处理MCP请求"""
+        """
+        处理MCP请求
+
+        功能描述:
+        - 处理JSON-RPC形式的MCP工具调用，直接通过HTTP返回响应
+
+        参数:
+        - request: aiohttp.web.Request，请求对象
+
+        返回值:
+        - aiohttp.web.Response，JSON响应，包含MCP服务器返回的结果
+
+        异常:
+        - json.JSONDecodeError: 请求体不是合法JSON
+        - Exception: 其他内部错误，返回500错误码
+        """
         start_time = time.time()
         conn_id = str(uuid.uuid4())[:8]
 
@@ -307,9 +350,157 @@ class MCPEnterpriseServer:
             }, status=500)
 
     async def handle_sse_connection(self, request):
-        """处理SSE连接"""
-        # 为future SSE支持预留
-        return web.Response(text="SSE support coming soon", status=501)
+        """
+        处理SSE连接
+
+        功能描述:
+        - 建立Server-Sent Events长连接
+        - 为每个连接分配session_id并维护消息队列
+        - 按心跳间隔发送注释行以保持连接
+
+        参数:
+        - request: aiohttp.web.Request，请求对象
+
+        返回值:
+        - aiohttp.web.StreamResponse，内容类型为text/event-stream
+
+        异常:
+        - Exception: 连接建立或发送过程中发生错误，记录并清理资源
+        """
+
+        # 认证检查
+        if not self._check_auth(request):
+            return web.Response(text="Unauthorized", status=401)
+
+        # 限流检查（按IP）
+        client_ip = request.remote or "unknown"
+        if not self._check_rate_limit(client_ip):
+            return web.Response(text="Rate limit exceeded", status=429)
+
+        # 创建SSE响应
+        response = web.StreamResponse()
+        response.headers['Content-Type'] = 'text/event-stream'
+        response.headers['Cache-Control'] = 'no-cache, no-transform'
+        response.headers['Connection'] = 'keep-alive'
+        response.headers['X-Accel-Buffering'] = 'no'
+
+        await response.prepare(request)
+
+        # 为连接分配ID与队列
+        conn_id = uuid.uuid4().hex
+        queue: asyncio.Queue = asyncio.Queue()
+        self.sse_queues[conn_id] = queue
+
+        # 记录连接信息
+        ua = request.headers.get('User-Agent', '')
+        self.connections[conn_id] = ConnectionInfo(
+            conn_id=conn_id,
+            client_ip=client_ip,
+            user_agent=ua,
+            created_at=datetime.now(),
+            last_active=datetime.now(),
+            transport="sse"
+        )
+        self.stats.active_connections += 1
+        self.stats.total_connections += 1
+
+        print(f"[SSE] 新连接: {conn_id} 来自 {client_ip}")
+
+        try:
+            # 告知客户端POST消息端点
+            endpoint_event = {"endpoint": f"/messages?session_id={conn_id}"}
+            await response.write(f"event: endpoint\ndata: {json.dumps(endpoint_event)}\n\n".encode('utf-8'))
+
+            # 消息循环
+            while True:
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    data = json.dumps(message)
+                    await response.write(f"data: {data}\n\n".encode('utf-8'))
+                    # 更新连接状态
+                    info = self.connections.get(conn_id)
+                    if info:
+                        info.last_active = datetime.now()
+                        info.request_count += 1
+                except asyncio.TimeoutError:
+                    # 发送心跳保持连接
+                    await response.write(b": ping\n\n")
+        except asyncio.CancelledError:
+            print(f"[SSE] 连接取消: {conn_id}")
+        except Exception as e:
+            print(f"[SSE] 连接错误 {conn_id}: {e}")
+        finally:
+            # 清理资源
+            self.sse_queues.pop(conn_id, None)
+            self.connections.pop(conn_id, None)
+            self.stats.active_connections = max(0, self.stats.active_connections - 1)
+            print(f"[SSE] 连接关闭: {conn_id}")
+
+        return response
+
+    async def handle_sse_message(self, request):
+        """
+        处理SSE消息POST
+
+        功能描述:
+        - 接收JSON-RPC消息并调用统一MCP服务器
+        - 将结果写入指定session的SSE队列
+        - 返回202以表示消息已接受
+
+        参数:
+        - request: aiohttp.web.Request，请求对象
+
+        返回值:
+        - aiohttp.web.Response，状态202或错误JSON
+
+        异常:
+        - json.JSONDecodeError: 请求体不是合法JSON
+        - KeyError/ValueError: session_id缺失或无效
+        - Exception: 其他内部错误，返回500错误码
+        """
+
+        # 认证与限流
+        if not self._check_auth(request):
+            return web.json_response({"error": "Unauthorized"}, status=401)
+
+        client_ip = request.remote or "unknown"
+        if not self._check_rate_limit(client_ip):
+            return web.json_response({"error": "Rate limit exceeded", "retry_after": 60}, status=429)
+
+        try:
+            # 获取session_id
+            session_id = request.query.get('session_id')
+            if not session_id or session_id not in self.sse_queues:
+                return web.json_response({"error": "Invalid session"}, status=400)
+
+            # 解析JSON-RPC请求
+            json_request = await request.json()
+            method = json_request.get('method', 'unknown')
+            request_id = json_request.get('id', 'N/A')
+            print(f"[HTTP->SSE] 请求 [ID:{request_id}]: {method}")
+
+            # 调用MCP服务器处理
+            mcp_response = self.mcp_server.handle_request(json_request)
+
+            # 投递到SSE队列
+            await self.sse_queues[session_id].put(mcp_response)
+
+            # 更新连接信息
+            info = self.connections.get(session_id)
+            if info:
+                info.last_active = datetime.now()
+                info.request_count += 1
+
+            # 返回接受状态
+            return web.Response(status=202)
+
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Parse error"}, status=400)
+        except Exception as e:
+            print(f"[HTTP->SSE] 错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return web.json_response({"error": str(e)}, status=500)
 
     async def handle_health(self, request):
         """健康检查"""
