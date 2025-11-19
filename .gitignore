@@ -1,24 +1,307 @@
-Dockerfile.mcp
-venv_mcp/
-venv/
-.venv/
+# ======================================================================
+# MCP Enterprise Server - Git Ignore Configuration
+# ======================================================================
+
+# ----------------------------------------------------------------------
+# Python
+# ----------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
 build/
+develop-eggs/
 dist/
-.DS_Store
-.idea/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+venv_mcp/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+test-results/
+.cache
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Linting
+.ruff_cache/
+.pylint.d/
+
+# ----------------------------------------------------------------------
+# IDE & Editors
+# ----------------------------------------------------------------------
+# VSCode
 .vscode/
-.trae/
-logs/
-config.yaml
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.#*
+
+# ----------------------------------------------------------------------
+# macOS
+# ----------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ----------------------------------------------------------------------
+# Environment & Configuration
+# ----------------------------------------------------------------------
+# Environment files (IMPORTANT: Never commit these!)
 .env
 .env.*
+!.env.example
+
+# Configuration files with secrets
+config.yaml
+config.yml
+secrets.json
+credentials.json
+
+# API Keys
+*.key
+*.pem
+*.crt
+*.cert
+
+# ----------------------------------------------------------------------
+# Logs
+# ----------------------------------------------------------------------
+# Log files
+*.log
+logs/
+log/
+*.log.*
+
+# Specific log files
+enterprise_server.log
+enterprise_server_new.log
+mcp_server.log
+error.log
+access.log
+debug.log
+
+# ----------------------------------------------------------------------
+# Docker & Services
+# ----------------------------------------------------------------------
+# Docker volumes
 mysql_data/
 redis_data/
 milvus_data/
+volumes/
+
+# Docker
+Dockerfile.mcp
+docker-compose.override.yml
+
+# ----------------------------------------------------------------------
+# Database
+# ----------------------------------------------------------------------
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# MySQL dumps
+*.sql.gz
+*.sql.backup
+
+# PostgreSQL dumps
+*.dump
+
+# Database backups
+backups/
+*.backup
+
+# ----------------------------------------------------------------------
+# Temporary & Cache
+# ----------------------------------------------------------------------
+# Temporary files
+*.tmp
+*.temp
+.temp/
+tmp/
+temp/
+
+# Cache directories
+.cache/
+cache/
+.trae/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# ----------------------------------------------------------------------
+# AI & ML Models
+# ----------------------------------------------------------------------
+# Model cache
+.cache/huggingface/
+models/
+*.bin
+*.h5
+*.pkl
+*.pickle
+*.joblib
+
+# Sentence transformers cache
+~/.cache/torch/
+
+# ----------------------------------------------------------------------
+# Project Specific
+# ----------------------------------------------------------------------
+# Archived files (keep for recovery)
+# .archived/
+
+# Test data
+test_data/
+test_output/
+
+# Migration backups
+*.before_refactor
+migrations/versions/*.pyc
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----------------------------------------------------------------------
+# Build & Release
+# ----------------------------------------------------------------------
+# Build artifacts
+*.whl
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Release files
+release/
+releases/
+
+# ----------------------------------------------------------------------
+# Monitoring & Profiling
+# ----------------------------------------------------------------------
+# Profiling data
+*.prof
+*.lprof
+profile_results/
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+
+# ----------------------------------------------------------------------
+# Security & Secrets
+# ----------------------------------------------------------------------
+# SSH keys
+id_rsa
+id_rsa.pub
+*.pem
+*.ppk
+
+# AWS credentials
+.aws/
+aws-credentials
+
+# GCP credentials
+gcloud-credentials.json
+service-account.json
+
+# Azure credentials
+azure-credentials
+
+# ----------------------------------------------------------------------
+# Documentation Build
+# ----------------------------------------------------------------------
+# Sphinx documentation
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# MkDocs
+site/
+
+# ----------------------------------------------------------------------
+# Node.js (if any frontend)
+# ----------------------------------------------------------------------
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# ======================================================================
+# Notes
+# ======================================================================
+#
+# Files that should NEVER be ignored:
+# - .env.example (template for environment variables)
+# - .gitignore (this file)
+# - requirements.txt (Python dependencies)
+# - README.md (project documentation)
+# - LICENSE (license file)
+# - CHANGELOG.md (version history)
+# - CONTRIBUTING.md (contribution guidelines)
+#
+# ======================================================================
