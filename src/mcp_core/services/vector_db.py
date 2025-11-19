@@ -155,7 +155,7 @@ class VectorDBClient:
             return collection
 
         except Exception as e:
-            logger.error(f"创建Collection失败: {e}", extra={"name": collection_name})
+            logger.error(f"创建Collection失败: {e}", extra={"collection_name": collection_name})
             raise
 
     def insert_vectors(

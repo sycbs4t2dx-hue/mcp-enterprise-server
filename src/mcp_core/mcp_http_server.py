@@ -27,6 +27,7 @@ from .services.memory_service import MemoryService
 from .services.token_service import get_token_service
 from .services.hallucination_service import create_hallucination_service
 from .mcp_server import MCPServer
+from .code_mcp_tools import MCPCodeAnalysisTools
 
 # 配置日志
 logging.basicConfig(
@@ -135,6 +136,9 @@ class MCPHTTPHandler:
         self.token_service = get_token_service()
         self.hallucination_service = create_hallucination_service(self.memory_service)
 
+        # 初始化代码分析工具
+        self.code_tools = MCPCodeAnalysisTools(db)
+
     def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """处理初始化"""
         return {
@@ -152,47 +156,47 @@ class MCPHTTPHandler:
 
     def handle_tools_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """列出工具"""
-        return {
-            "tools": [
-                {
-                    "name": "store_memory",
-                    "description": "存储新的记忆到项目中",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "project_id": {"type": "string", "description": "项目ID"},
-                            "content": {"type": "string", "description": "记忆内容"},
-                            "memory_level": {
-                                "type": "string",
-                                "enum": ["short", "mid", "long"],
-                                "description": "记忆级别",
-                                "default": "mid"
-                            },
-                            "tags": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "标签"
-                            }
+        # 基础记忆工具
+        memory_tools = [
+            {
+                "name": "store_memory",
+                "description": "存储新的记忆到项目中",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "project_id": {"type": "string", "description": "项目ID"},
+                        "content": {"type": "string", "description": "记忆内容"},
+                        "memory_level": {
+                            "type": "string",
+                            "enum": ["short", "mid", "long"],
+                            "description": "记忆级别",
+                            "default": "mid"
                         },
-                        "required": ["project_id", "content"]
-                    }
-                },
-                {
-                    "name": "retrieve_memory",
-                    "description": "检索相关记忆",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "project_id": {"type": "string", "description": "项目ID"},
-                            "query": {"type": "string", "description": "检索查询"},
-                            "top_k": {"type": "integer", "description": "返回数量", "default": 5}
-                        },
-                        "required": ["project_id", "query"]
-                    }
-                },
-                {
-                    "name": "compress_content",
-                    "description": "压缩长文本",
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "标签"
+                        }
+                    },
+                    "required": ["project_id", "content"]
+                }
+            },
+            {
+                "name": "retrieve_memory",
+                "description": "检索相关记忆",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "project_id": {"type": "string", "description": "项目ID"},
+                        "query": {"type": "string", "description": "检索查询"},
+                        "top_k": {"type": "integer", "description": "返回数量", "default": 5}
+                    },
+                    "required": ["project_id", "query"]
+                }
+            },
+            {
+                "name": "compress_content",
+                "description": "压缩长文本",
                     "inputSchema": {
                         "type": "object",
                         "properties": {

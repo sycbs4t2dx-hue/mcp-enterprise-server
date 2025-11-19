@@ -350,42 +350,79 @@ class MemoryService:
     def _retrieve_long_memories(
         self, project_id: str, query: str, top_k: int
     ) -> List[Dict[str, Any]]:
-        """检索长期记忆(SQL查询)"""
+        """检索长期记忆(SQL查询+关键词匹配)"""
         try:
             # 提取查询关键词
-            keywords = self._extract_keywords(query)
+            keywords = self._extract_keywords(query, max_keywords=10)
+            logger.debug(f"提取的关键词: {keywords}", extra={"query": query})
 
-            # SQL查询(简化版:按置信度和类别匹配)
-            long_mems = (
-                self.db.query(LongMemory)
-                .filter(LongMemory.project_id == project_id)
-                .order_by(LongMemory.confidence.desc())
-                .limit(top_k)
-                .all()
-            )
+            # 如果没有关键词,返回所有记忆
+            if not keywords:
+                logger.info("无关键词,返回所有长期记忆", extra={"project_id": project_id})
+                long_mems = (
+                    self.db.query(LongMemory)
+                    .filter(LongMemory.project_id == project_id)
+                    .order_by(LongMemory.created_at.desc())
+                    .limit(top_k * 2)
+                    .all()
+                )
+            else:
+                # 获取更多候选记忆(top_k * 3)
+                long_mems = (
+                    self.db.query(LongMemory)
+                    .filter(LongMemory.project_id == project_id)
+                    .order_by(LongMemory.confidence.desc())
+                    .limit(top_k * 3)
+                    .all()
+                )
 
             memories = []
             for mem in long_mems:
-                # 计算内容相似度(简单关键词匹配)
+                # 计算内容相似度(改进的关键词匹配)
                 content_lower = mem.content.lower()
+
+                # 统计匹配的关键词数量
                 match_count = sum(1 for kw in keywords if kw in content_lower)
-                relevance_score = min(match_count / max(len(keywords), 1), 1.0)
+
+                # 改进的相关性计算
+                if not keywords:
+                    # 无关键词时,使用confidence排序
+                    relevance_score = float(mem.confidence) if mem.confidence else 0.5
+                elif match_count == 0:
+                    # 没有匹配,跳过
+                    continue
+                else:
+                    # 有匹配: 匹配比例 * confidence
+                    match_ratio = match_count / len(keywords)
+                    confidence_value = float(mem.confidence) if mem.confidence else 0.5
+                    relevance_score = match_ratio * confidence_value
 
                 memories.append(
                     {
                         "memory_id": mem.memory_id,
                         "content": mem.content,
-                        "relevance_score": relevance_score * float(mem.confidence),
+                        "relevance_score": relevance_score,
                         "source": "long_term",
                         "category": mem.category,
-                        "confidence": float(mem.confidence),
+                        "confidence": float(mem.confidence) if mem.confidence else 0.5,
+                        "matched_keywords": match_count,
                     }
                 )
 
-            return memories
+            # 按相关性得分排序
+            memories.sort(key=lambda x: x["relevance_score"], reverse=True)
+
+            # 返回Top-K
+            result = memories[:top_k]
+            logger.info(
+                f"长期记忆检索完成: {len(result)}/{len(memories)}条",
+                extra={"project_id": project_id, "keywords": keywords}
+            )
+
+            return result
 
         except Exception as e:
-            logger.error(f"长期记忆检索失败: {e}", extra={"project_id": project_id})
+            logger.error(f"长期记忆检索失败: {e}", extra={"project_id": project_id}, exc_info=True)
             return []
 
     # ==================== 更新记忆 ====================
@@ -533,27 +570,38 @@ class MemoryService:
 
         return unique
 
-    def _extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
-        """提取关键词"""
-        # 简单分词
-        words = re.findall(r"\b\w{2,}\b", text.lower())
+    def _extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
+        """提取关键词 - 支持中英文混合"""
+        try:
+            import jieba
 
-        # 停用词
-        stop_words = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "but",
-            "的",
-            "了",
-            "在",
-            "是",
-        }
+            # 使用jieba分词(支持中文)
+            words = list(jieba.cut(text.lower()))
 
-        # 过滤并去重
-        keywords = [w for w in words if w not in stop_words]
-        unique_keywords = list(dict.fromkeys(keywords))  # 保持顺序去重
+            # 扩展的停用词列表(中英文)
+            stop_words = {
+                # 英文停用词
+                "the", "a", "an", "and", "or", "but", "is", "are", "was", "were",
+                "in", "on", "at", "to", "for", "of", "with", "by", "from",
+                # 中文停用词
+                "的", "了", "在", "是", "有", "和", "与", "或", "但", "也",
+                "就", "都", "而", "及", "等", "着", "之", "于", "对", "以",
+                # 标点符号
+                ".", ",", "!", "?", ";", ":", "(", ")", "[", "]", "{", "}",
+                "/", "\\", "-", "_", "=", "+", "*", "&", "%", "$", "#", "@",
+            }
 
-        return unique_keywords[:max_keywords]
+            # 过滤: 长度>1 且 不是停用词
+            keywords = [w.strip() for w in words if len(w) > 1 and w not in stop_words]
+
+            # 去重但保持顺序
+            unique_keywords = list(dict.fromkeys(keywords))
+
+            return unique_keywords[:max_keywords]
+
+        except ImportError:
+            logger.warning("jieba未安装,使用简化分词")
+            # 降级方案: 简单分词
+            words = re.findall(r"[\w]+", text.lower())
+            keywords = [w for w in words if len(w) > 1]
+            return list(dict.fromkeys(keywords))[:max_keywords]

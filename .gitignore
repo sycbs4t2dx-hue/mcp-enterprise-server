@@ -19,3 +19,6 @@ logs/
 config.yaml
 .env
 .env.*
+mysql_data/
+redis_data/
+milvus_data/

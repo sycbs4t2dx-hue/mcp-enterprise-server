@@ -1,0 +1,405 @@
+# MCP v2.0.0 - AI辅助项目开发系统
+
+> 集成Claude AI的生产级MCP系统，确保项目可持续开发不烂尾
+
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/your-repo/mcp)
+[![Python](https://img.shields.io/badge/python-3.9%2B-brightgreen.svg)](https://www.python.org/)
+[![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange.svg)](https://modelcontextprotocol.io/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+---
+
+## 🎯 核心特性
+
+### 🚀 一键部署，5分钟启动
+```bash
+python setup.py --install
+python mcp_server_unified.py
+```
+
+### 🛠️ 37个MCP工具，覆盖完整开发流程
+
+| 类别 | 工具数 | 核心功能 |
+|------|--------|---------|
+| 📦 **基础记忆** | 2 | 三级记忆管理、向量检索 |
+| 🔍 **代码分析** | 8 | 知识图谱、架构查询、依赖追踪 |
+| 📝 **项目上下文** | 12 | 会话管理、设计决策、TODO追踪 |
+| 🤖 **AI辅助** | 7 | 代码理解、续写简报、智能建议 |
+| 🛡️ **质量守护** | 8 | 异味检测、债务评估、预测分析 |
+
+### 💪 多语言支持
+
+- ✅ **Python** - 完整AST分析
+- ✅ **Java** - 完整AST分析
+- ✅ **Vue** - 模板和脚本分析
+- ✅ **Swift** - iOS代码分析
+
+### 🎨 Claude AI深度集成
+
+- 🧠 **代码深度理解** - 自动生成代码解释和文档
+- 📋 **续写简报生成** - 快速恢复开发上下文
+- 💡 **智能下一步建议** - AI推荐开发方向
+- ✅ **自动TODO生成** - 从目标自动拆解任务
+
+---
+
+## 📦 快速开始
+
+### 1. 环境要求
+
+- **Python**: >= 3.9
+- **MySQL**: >= 5.7 或 >= 8.0
+- **Anthropic API Key** (可选，AI功能需要)
+
+### 2. 一键安装
+
+```bash
+# 克隆项目
+git clone https://github.com/your-repo/mcp.git
+cd mcp
+
+# 完整安装
+python setup.py --install
+
+# 输出示例:
+# ============================================================
+#                      MCP v2.0.0 - 一键初始化
+# ============================================================
+#
+# ✅ Python版本: 3.9.6
+# ✅ 所有依赖已安装
+# ✅ MySQL连接成功: root@localhost:3306
+# ✅ 数据库已创建: mcp_db
+# ✅ 数据表创建完成: 18/18
+#
+# 🎉 MCP v2.0.0 安装成功！
+```
+
+### 3. 配置AI服务（可选但推荐）
+
+```bash
+# 设置Anthropic API Key
+export ANTHROPIC_API_KEY='sk-ant-your-key-here'
+
+# 或编辑配置文件
+vim config/mcp_config.json
+```
+
+### 4. 启动服务器
+
+```bash
+python mcp_server_unified.py
+
+# 输出:
+# === mcp-unified-server v2.0.0 ===
+# MCP协议版本: 2024-11-05
+# ✅ 所有服务初始化完成
+# 等待客户端连接...
+# 工具数量: 37
+```
+
+### 5. 在Claude Code/Desktop中配置
+
+编辑MCP配置文件 (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "mcp-unified": {
+      "command": "python",
+      "args": ["/path/to/mcp_server_unified.py"]
+    }
+  }
+}
+```
+
+重启Claude Desktop，即可使用所有37个MCP工具！
+
+---
+
+## 🎬 使用示例
+
+### 示例1: 分析项目代码质量
+
+```
+You: "分析我的项目代码质量，识别技术债务热点"
+
+AI调用工具:
+1. analyze_codebase → 分析代码结构
+2. detect_code_smells → 检测代码异味
+3. assess_technical_debt → 评估技术债务
+4. identify_debt_hotspots → 识别热点文件
+
+AI回复:
+您的项目代码质量评分: 6.5/10 (良好)
+
+发现5个技术债务热点:
+1. 🔴 services/order_service.py (债务分数: 12.5)
+   - 上帝类: 35个方法, 850行
+   - 过长函数: process_order (450行)
+   → 建议: 拆分为多个小服务
+
+2. 🔴 services/user_service.py (债务分数: 10.0)
+   - 循环依赖: user_service ↔ order_service
+   → 建议: 引入依赖注入解耦
+
+预估修复时间: 3.5天
+建议优先重构前2个热点文件
+```
+
+### 示例2: 恢复开发上下文
+
+```
+You: "我上周在做什么？生成续写简报"
+
+AI调用工具:
+1. get_session_history → 获取最近会话
+2. get_design_decisions → 获取设计决策
+3. list_todos → 获取待办事项
+4. ai_generate_resumption_briefing → 生成AI简报
+
+AI回复:
+📋 开发续写简报 (2025-01-15 最后会话)
+
+**会话目标**:
+重构订单服务，提升代码质量
+
+**已完成**:
+✅ 分析了订单服务的代码质量
+✅ 识别了3个主要技术债务
+✅ 记录了重构策略设计决策
+
+**关键决策**:
+🎯 决策: 采用服务拆分策略
+   原因: 当前OrderService职责过多
+   替代方案: 保持单体 vs 微服务拆分
+   选择: 拆分为3个服务（平衡方案）
+
+**待办事项**:
+⏳ 实现OrderCreationService (高优先级)
+⏳ 实现OrderFulfillmentService (高优先级)
+⏳ 添加集成测试 (中优先级)
+
+**建议下一步**:
+1. 先实现OrderCreationService
+2. 编写单元测试确保行为一致
+3. 逐步迁移现有代码
+```
+
+### 示例3: AI辅助理解复杂代码
+
+```
+You: "解释这个函数在做什么: process_payment"
+
+AI调用工具:
+1. find_entity → 查找函数定义
+2. trace_function_calls → 追踪调用关系
+3. ai_understand_function → AI深度理解
+
+AI回复:
+📖 process_payment 函数深度解析
+
+**功能概述**:
+这是一个支付处理核心函数，负责:
+1. 验证支付信息
+2. 调用第三方支付网关
+3. 更新订单状态
+4. 记录支付日志
+
+**调用关系**:
+process_payment 调用:
+  → validate_payment_info()
+  → PaymentGateway.charge()
+  → OrderService.update_status()
+  → PaymentLog.create()
+
+被调用于:
+  ← OrderController.checkout()
+  ← SubscriptionService.renew()
+
+**潜在问题**:
+⚠️ 缺少事务处理 - 支付成功但订单更新失败时会出现不一致
+⚠️ 缺少重试机制 - 网络故障时会直接失败
+
+**改进建议**:
+💡 使用数据库事务包装整个流程
+💡 实现幂等性支持重试
+💡 添加支付状态机管理
+```
+
+---
+
+## 🏗️ 系统架构
+
+```
+┌─────────────────────────────────────┐
+│   Claude Code / Claude Desktop      │
+└────────────┬────────────────────────┘
+             │ MCP协议
+             ↓
+┌─────────────────────────────────────┐
+│   mcp_server_unified.py (统一入口)  │
+├─────────────────────────────────────┤
+│  📦 基础记忆 (2)                     │
+│  🔍 代码分析 (8)                     │
+│  📝 项目上下文 (12)                  │
+│  🤖 AI辅助 (7)                       │
+│  🛡️ 质量守护 (8)                     │
+└────────────┬────────────────────────┘
+             │
+             ↓
+┌─────────────────────────────────────┐
+│   MySQL + 18张数据表                 │
+│   - 项目、记忆、代码、上下文、质量    │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 📊 核心能力
+
+### 🧠 防止项目烂尾的三大支柱
+
+#### 1. 持久化项目上下文
+- ✅ 开发会话记录 - 记住每次工作的目标和成果
+- ✅ 设计决策追踪 - 记录为什么这样设计
+- ✅ 智能笔记系统 - 分类存储关键信息
+- ✅ TODO智能管理 - 依赖关系和优先级
+
+#### 2. AI辅助恢复上下文
+- ✅ 续写简报生成 - 快速回忆上次做了什么
+- ✅ 智能下一步建议 - AI推荐接下来该做什么
+- ✅ 任务自动拆解 - 从大目标拆解为可执行步骤
+
+#### 3. 质量持续监控
+- ✅ 代码异味实时检测 - 发现问题趁早
+- ✅ 技术债务量化评估 - 知道问题有多严重
+- ✅ 债务热点识别 - 优先处理影响最大的文件
+
+---
+
+## 📈 版本历史
+
+### v2.0.0 (2025-01-19) - 生产就绪 🎉
+
+- ✅ **统一MCP服务器** - 集成所有37个工具
+- ✅ **一键初始化** - 5分钟完成部署
+- ✅ **端到端测试** - 90%测试覆盖率
+- ✅ **配置管理** - 零配置开箱即用
+
+### v1.7.0 (2025-01-19) - 质量守护
+
+- ✅ 代码异味检测 (循环依赖、长函数、上帝类、高耦合)
+- ✅ 技术债务评估 (5维度评分)
+- ✅ 债务热点识别 (预测性分析)
+- ✅ 8个质量守护MCP工具
+
+### v1.6.0 (2025-01-18) - Swift支持
+
+- ✅ Swift/iOS代码分析
+- ✅ 完整MCP集成 (31个工具)
+
+### v1.5.0 (2025-01-18) - AI辅助
+
+- ✅ Claude API集成
+- ✅ 项目上下文管理 (12个工具)
+- ✅ AI辅助开发 (7个工具)
+- ✅ 续写简报生成
+
+### v1.4.0 (2025-01-17) - 多语言
+
+- ✅ Java代码分析
+- ✅ Vue代码分析
+
+### v1.3.0 (2025-01-16) - 代码知识图谱
+
+- ✅ Python AST分析
+- ✅ 实体关系图谱
+- ✅ 架构查询
+
+---
+
+## 🧪 测试
+
+### 运行测试
+
+```bash
+# 完整测试
+python test_end_to_end.py
+
+# 快速测试（跳过AI）
+python test_end_to_end.py --quick
+
+# 仅工具测试
+python test_end_to_end.py --tools
+
+# 仅工作流测试
+python test_end_to_end.py --workflow
+
+# 性能测试
+python test_end_to_end.py --benchmark
+```
+
+### 测试覆盖
+
+```
+✅ 单元测试 - 核心功能
+✅ 集成测试 - 服务间交互
+✅ 端到端测试 - 完整工作流
+✅ 性能测试 - 延迟和吞吐量
+✅ 错误处理 - 异常情况
+
+总覆盖率: 90%
+```
+
+---
+
+## 📚 文档
+
+- [完整发布说明](V2.0.0_RELEASE_COMPLETE.md) - v2.0.0详细说明
+- [系统集成设计](SYSTEM_INTEGRATION_DESIGN.md) - 架构设计文档
+- [实现总结](SYSTEM_V2_IMPLEMENTATION.md) - 实现细节
+- [AI辅助开发设计](AI_ASSISTED_DEVELOPMENT_DESIGN.md) - AI功能设计
+- [质量守护设计](QUALITY_GUARDIAN_DESIGN.md) - 质量系统设计
+
+---
+
+## 🛠️ 技术栈
+
+- **Python** 3.9+ - 核心开发语言
+- **SQLAlchemy** 2.0 - ORM框架
+- **MySQL** 8.0 - 数据持久化
+- **Anthropic Claude** - AI理解能力
+- **MCP协议** 2024-11-05 - 工具接口标准
+
+---
+
+## 🤝 贡献
+
+欢迎贡献！请查看 [贡献指南](CONTRIBUTING.md)
+
+---
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+---
+
+## 🙏 致谢
+
+- [Anthropic Claude](https://www.anthropic.com/) - 强大的AI能力
+- [MCP协议](https://modelcontextprotocol.io/) - 统一工具标准
+- 所有开源社区贡献者
+
+---
+
+## 📞 联系
+
+- 📧 Email: support@mcp-project.com
+- 💬 Issues: [GitHub Issues](https://github.com/your-repo/mcp/issues)
+- 🌟 Star us on [GitHub](https://github.com/your-repo/mcp)
+
+---
+
+**MCP v2.0.0 - 让AI成为你的开发伙伴，确保项目可持续发展！** 🚀✨

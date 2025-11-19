@@ -1,0 +1,249 @@
+# MCP Enterprise Server v2.0.0
+
+> **Model Context Protocol统一服务器** - 提供37个专业MCP工具,支持代码分析、项目管理、AI辅助和质量守护
+
+[![MCP Version](https://img.shields.io/badge/MCP-2024--11--05-blue)](https://modelcontextprotocol.io/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-green)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-%E7%94%9F%E4%BA%A7%E5%B0%B1%E7%BB%AA-brightgreen)](README.md)
+
+---
+
+## 🚀 快速开始
+
+### 本机使用（1分钟）
+
+```bash
+# 1. 启动Docker服务
+./start_services.sh
+
+# 2. 配置Claude Code（编辑 ~/.config/claude/claude_desktop_config.json）
+{
+  "mcpServers": {
+    "mcp-local": {
+      "command": "python3",
+      "args": ["/Users/mac/Downloads/MCP/mcp_server_unified.py"],
+      "env": {"DB_PASSWORD": "Wxwy.2025@#"}
+    }
+  }
+}
+
+# 3. 重启Claude Code，开始使用37个工具！
+```
+
+### 局域网共享（3分钟）
+
+```bash
+# 1. 启动服务器
+./start_sse_server.sh
+
+# 2. 同事配置（使用您的IP）
+{
+  "mcpServers": {
+    "mcp-remote": {
+      "url": "http://192.168.1.34:8765"
+    }
+  }
+}
+```
+
+### 企业生产（5分钟）
+
+```bash
+# 1. 配置环境
+cp .env.example .env
+vim .env  # 设置API_KEYS和ALLOWED_IPS
+
+# 2. 启动企业版
+./start_enterprise_server.sh
+
+# 3. 同事配置（带认证）
+{
+  "mcpServers": {
+    "mcp-remote": {
+      "url": "http://192.168.1.34:8765",
+      "headers": {"Authorization": "Bearer sk-your-key"}
+    }
+  }
+}
+```
+
+---
+
+## 📋 功能特性
+
+### 🔧 37个MCP工具
+
+| 类别 | 数量 | 主要功能 |
+|------|------|---------|
+| **基础记忆** | 2 | 存储/检索记忆 |
+| **代码分析** | 8 | 分析代码库、追踪调用、查找依赖 |
+| **项目上下文** | 12 | 会话管理、TODO、设计决策 |
+| **AI辅助** | 7 | AI理解代码、生成简报、分解任务 |
+| **质量守护** | 8 | 代码异味检测、技术债务评估 |
+
+### 🌟 企业级特性
+
+- ✅ **多传输方式**: stdio, HTTP, SSE
+- ✅ **安全认证**: API密钥、IP白名单
+- ✅ **性能优化**: 请求限流(100/60s)、并发控制(1000)
+- ✅ **完整监控**: Prometheus指标、实时统计
+- ✅ **高可用**: 健康检查、优雅关闭
+
+---
+
+## 🗂️ 项目结构
+
+```
+MCP/
+├── README.md                    # 👈 本文档
+├── mcp_server_unified.py        # stdio版MCP服务器
+├── mcp_server_http_simple.py    # 简单HTTP版
+├── mcp_server_enterprise.py     # 企业版（认证+监控）
+├── start_services.sh            # Docker服务启动
+├── start_sse_server.sh          # HTTP服务器启动
+├── start_enterprise_server.sh   # 企业版启动
+├── .env.example                 # 环境变量模板
+├── src/mcp_core/                # 核心服务
+├── config/mcp_config.json       # 服务器配置
+└── docs/                        # 📚 文档
+    ├── QUICK_REFERENCE.md       # 快速参考
+    ├── ENTERPRISE_DEPLOYMENT.md # 企业部署指南
+    ├── ENTERPRISE_COMPLETE.md   # v2.0.0完成报告
+    ├── guides/                  # 详细指南
+    └── archive/                 # 历史文档
+```
+
+---
+
+## 📊 技术栈
+
+**核心**: Python 3.9+ • MCP 2024-11-05 • aiohttp • SQLAlchemy 2.0
+
+**存储**: MySQL 8.0 (18张表) • Redis 7 (缓存) • Milvus 2.3 (向量)
+
+**AI/ML**: Sentence Transformers • Claude 3.5 Sonnet
+
+---
+
+## 🎯 三种部署模式
+
+### 模式1: 本机开发（最快）
+
+**适用**: 个人开发 | **特点**: 零延迟，最高性能
+
+```json
+{
+  "mcpServers": {
+    "mcp-local": {
+      "command": "python3",
+      "args": ["/path/to/mcp_server_unified.py"],
+      "env": {"DB_PASSWORD": "Wxwy.2025@#"}
+    }
+  }
+}
+```
+
+### 模式2: 局域网共享（最简单）
+
+**适用**: 3-5人小团队 | **特点**: 无需认证，快速上手
+
+```bash
+./start_sse_server.sh
+```
+
+### 模式3: 企业生产（最安全）
+
+**适用**: 企业团队 | **特点**: 完整安全控制和监控
+
+```bash
+./start_enterprise_server.sh
+```
+
+---
+
+## 📖 文档
+
+| 文档 | 说明 |
+|------|------|
+| [快速参考](QUICK_REFERENCE.md) | 常用命令和配置 |
+| [企业部署](ENTERPRISE_DEPLOYMENT.md) | 生产环境部署指南 |
+| [完成报告](ENTERPRISE_COMPLETE.md) | v2.0.0功能说明 |
+| [使用指南](docs/guides/usage.md) | 工具使用说明 |
+| [故障排查](docs/guides/troubleshooting.md) | 常见问题 |
+
+---
+
+## 🛠️ 管理端点
+
+| 端点 | 用途 |
+|------|------|
+| `/health` | 健康检查 |
+| `/stats` | 实时统计 |
+| `/metrics` | Prometheus指标 |
+| `/info` | 服务器信息页面 |
+
+---
+
+## 🐛 故障排查
+
+```bash
+# 检查服务器运行
+ps aux | grep mcp_server
+
+# 检查Docker服务
+docker ps | grep mcp
+
+# 查看健康状态
+curl http://localhost:8765/health
+
+# 查看日志
+tail -f mcp_server.log
+```
+
+更多问题查看: [故障排查指南](docs/guides/troubleshooting.md)
+
+---
+
+## 📈 性能
+
+- **延迟**: P95 < 200ms
+- **吞吐**: 100+ QPS
+- **并发**: 1000连接
+- **内存**: ~150MB
+
+---
+
+## 🗺️ 路线图
+
+**v2.1.0** (1个月): WebSocket • 管理UI • OAuth2
+
+**v2.2.0** (3个月): 分布式部署 • Redis Cluster
+
+**v3.0.0** (6个月): Kubernetes • 服务网格 • 多租户
+
+---
+
+## 🤝 贡献
+
+欢迎贡献！请查看 [贡献指南](docs/guides/contributing.md)
+
+---
+
+## 📄 许可证
+
+MIT License
+
+---
+
+## 🙏 致谢
+
+- [Anthropic](https://anthropic.com) - Claude AI
+- [MCP Protocol](https://spec.modelcontextprotocol.io/) - 协议规范
+- 社区贡献者
+
+---
+
+**MCP v2.0.0 - 让AI辅助开发更高效！** 🚀
+
+**最后更新**: 2025-01-19 | **版本**: v2.0.0 | **状态**: ✅ 生产就绪

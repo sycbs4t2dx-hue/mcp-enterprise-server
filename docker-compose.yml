@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Milvus向量数据库
+  milvus-standalone:
+    container_name: mcp-milvus
+    image: milvusdb/milvus:v2.3.4
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_USE_EMBED: "true"
+      COMMON_STORAGETYPE: "local"
+    volumes:
+      - ${PWD}/milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"  # gRPC端口
+      - "9091:9091"    # Metrics端口
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+
+  # MySQL数据库
+  mysql:
+    container_name: mcp-mysql
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-mcp_password}
+      MYSQL_DATABASE: mcp_db
+      MYSQL_USER: mcp
+      MYSQL_PASSWORD: ${DB_PASSWORD:-mcp_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ${PWD}/mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存
+  redis:
+    container_name: mcp-redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ${PWD}/redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  default:
+    name: mcp-network

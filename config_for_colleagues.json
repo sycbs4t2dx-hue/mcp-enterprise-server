@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mcp-remote": {
+      "command": "python3",
+      "args": [
+        "/path/to/mcp_client_http.py",
+        "http://192.168.1.34:8765"
+      ],
+      "env": {}
+    }
+  }
+}

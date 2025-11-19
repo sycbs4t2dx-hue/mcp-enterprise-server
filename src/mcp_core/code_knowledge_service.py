@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+"""
+代码知识图谱 - 存储服务
+
+将代码分析结果存储到数据库，支持高效查询
+"""
+
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from sqlalchemy import Column, String, Integer, Text, JSON, DateTime, ForeignKey, Index, func
+from sqlalchemy.orm import Session, relationship
+# from sqlalchemy.ext.declarative import declarative_base  # ❌ 已废弃
+from mcp_core.models.base import Base
+
+try:
+    from .models.tables import Base as ProjectBase
+except ImportError:
+    # 如果相对导入失败，尝试绝对导入
+    try:
+        from src.mcp_core.models.tables import Base as ProjectBase
+    except ImportError:
+        # 创建一个空的Base（兼容性）
+        ProjectBase = declarative_base()
+
+from .code_analyzer import CodeEntity, CodeRelation
+
+# Base = declarative_base()  # ❌ 已废弃: 使用统一的Base
+
+
+# ==================== 数据模型 ====================
+
+class CodeProject(Base):
+    """代码项目"""
+    __tablename__ = "code_projects"
+    __table_args__ = {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
+
+    project_id = Column(String(64), primary_key=True)
+    name = Column(String(255), nullable=False)
+    path = Column(String(512), nullable=False)
+    language = Column(String(32), default="python")
+    version = Column(String(64))
+    description = Column(Text)
+
+    # 统计信息
+    total_files = Column(Integer, default=0)
+    total_lines = Column(Integer, default=0)
+    total_entities = Column(Integer, default=0)
+    total_relations = Column(Integer, default=0)
+
+    # 分析状态
+    status = Column(String(32), default="pending")  # pending, analyzing, completed, failed
+    analyzed_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # 元数据
+    meta_data = Column(JSON, default=dict)
+
+
+class CodeEntityModel(Base):
+    """代码实体"""
+    __tablename__ = "code_entities"
+    __table_args__ = (
+        Index('idx_project_type', 'project_id', 'entity_type'),
+        Index('idx_qualified_name', 'qualified_name'),
+        Index('idx_file_path', 'file_path'),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
+    )
+
+    entity_id = Column(String(64), primary_key=True)
+    project_id = Column(String(64), ForeignKey('code_projects.project_id', ondelete='CASCADE'), nullable=False)
+
+    # 基本信息
+    entity_type = Column(String(32), nullable=False)  # class, function, method, variable, module
+    name = Column(String(255), nullable=False)
+    qualified_name = Column(String(512), nullable=False)
+
+    # 位置信息
+    file_path = Column(String(512), nullable=False)
+    line_number = Column(Integer, nullable=False)
+    end_line = Column(Integer)
+
+    # 详细信息
+    docstring = Column(Text)
+    signature = Column(String(512))
+    parent_id = Column(String(64))
+
+    # 元数据
+    meta_data = Column(JSON, default=dict)
+
+    # 向量表示（用于语义搜索）
+    embedding = Column(Text)  # JSON序列化的向量
+
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class CodeRelationModel(Base):
+    """代码关系"""
+    __tablename__ = "code_relations"
+    __table_args__ = (
+        Index('idx_project_relation', 'project_id', 'relation_type'),
+        Index('idx_source', 'source_id'),
+        Index('idx_target', 'target_id'),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
+    )
+
+    relation_id = Column(String(64), primary_key=True)
+    project_id = Column(String(64), ForeignKey('code_projects.project_id', ondelete='CASCADE'), nullable=False)
+
+    source_id = Column(String(64), nullable=False)
+    target_id = Column(String(64), nullable=False)
+    relation_type = Column(String(32), nullable=False)  # calls, imports, inherits, uses, contains
+
+    # 元数据
+    meta_data = Column(JSON, default=dict)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class CodeKnowledge(Base):
+    """代码知识条目（高层次理解）"""
+    __tablename__ = "code_knowledge"
+    __table_args__ = (
+        Index('idx_project_category', 'project_id', 'category'),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
+    )
+
+    knowledge_id = Column(String(64), primary_key=True)
+    project_id = Column(String(64), ForeignKey('code_projects.project_id', ondelete='CASCADE'), nullable=False)
+
+    category = Column(String(64), nullable=False)  # architecture, pattern, workflow, concept
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+
+    # 关联实体
+    related_entities = Column(JSON, default=list)  # 相关实体ID列表
+
+    # 元数据
+    meta_data = Column(JSON, default=dict)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# ==================== 知识图谱存储服务 ====================
+
+class CodeKnowledgeGraphService:
+    """代码知识图谱存储服务"""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_project(self,
+                      project_id: str,
+                      name: str,
+                      path: str,
+                      language: str = "python",
+                      **kwargs) -> CodeProject:
+        """创建项目"""
+        project = CodeProject(
+            project_id=project_id,
+            name=name,
+            path=path,
+            language=language,
+            **kwargs
+        )
+        self.db.add(project)
+        self.db.commit()
+        self.db.refresh(project)
+        return project
+
+    def store_analysis_result(self,
+                              project_id: str,
+                              entities: List[Dict[str, Any]],
+                              relations: List[Dict[str, Any]],
+                              stats: Dict[str, Any]) -> None:
+        """存储分析结果"""
+
+        # 更新项目状态
+        project = self.db.query(CodeProject).filter_by(project_id=project_id).first()
+        if not project:
+            raise ValueError(f"项目不存在: {project_id}")
+
+        project.status = "analyzing"
+        project.total_files = stats.get("total_files", 0)
+        project.total_lines = stats.get("total_lines", 0)
+        project.total_entities = len(entities)
+        project.total_relations = len(relations)
+        self.db.commit()
+
+        # 批量插入实体
+        print(f"💾 存储 {len(entities)} 个实体...")
+        for i, entity_data in enumerate(entities):
+            if i % 100 == 0:
+                print(f"   进度: {i}/{len(entities)}")
+
+            entity = CodeEntityModel(
+                entity_id=entity_data["id"],
+                project_id=project_id,
+                entity_type=entity_data["type"],
+                name=entity_data["name"],
+                qualified_name=entity_data["qualified_name"],
+                file_path=entity_data["file_path"],
+                line_number=entity_data["line_number"],
+                end_line=entity_data.get("end_line"),
+                docstring=entity_data.get("docstring"),
+                signature=entity_data.get("signature"),
+                parent_id=entity_data.get("parent_id"),
+                meta_data=entity_data.get("metadata", {})
+            )
+            self.db.add(entity)
+
+        self.db.commit()
+        print(f"✓ 实体存储完成")
+
+        # 批量插入关系
+        print(f"💾 存储 {len(relations)} 个关系...")
+        for i, relation_data in enumerate(relations):
+            if i % 100 == 0:
+                print(f"   进度: {i}/{len(relations)}")
+
+            import hashlib
+            relation_id = hashlib.md5(
+                f"{relation_data['source_id']}:{relation_data['target_id']}:{relation_data['relation_type']}".encode()
+            ).hexdigest()[:16]
+
+            relation = CodeRelationModel(
+                relation_id=relation_id,
+                project_id=project_id,
+                source_id=relation_data["source_id"],
+                target_id=relation_data["target_id"],
+                relation_type=relation_data["relation_type"],
+                meta_data=relation_data.get("metadata", {})
+            )
+            self.db.add(relation)
+
+        self.db.commit()
+        print(f"✓ 关系存储完成")
+
+        # 更新项目状态
+        project.status = "completed"
+        project.analyzed_at = datetime.now()
+        self.db.commit()
+
+        print(f"✅ 项目分析结果已存储: {project_id}")
+
+    def query_entity(self, project_id: str, entity_id: str) -> Optional[CodeEntityModel]:
+        """查询实体"""
+        return self.db.query(CodeEntityModel).filter_by(
+            project_id=project_id,
+            entity_id=entity_id
+        ).first()
+
+    def query_entities_by_type(self, project_id: str, entity_type: str) -> List[CodeEntityModel]:
+        """按类型查询实体"""
+        return self.db.query(CodeEntityModel).filter_by(
+            project_id=project_id,
+            entity_type=entity_type
+        ).all()
+
+    def query_entities_by_file(self, project_id: str, file_path: str) -> List[CodeEntityModel]:
+        """按文件查询实体"""
+        return self.db.query(CodeEntityModel).filter_by(
+            project_id=project_id,
+            file_path=file_path
+        ).all()
+
+    def query_relations(self,
+                       project_id: str,
+                       source_id: Optional[str] = None,
+                       target_id: Optional[str] = None,
+                       relation_type: Optional[str] = None) -> List[CodeRelationModel]:
+        """查询关系"""
+        query = self.db.query(CodeRelationModel).filter_by(project_id=project_id)
+
+        if source_id:
+            query = query.filter_by(source_id=source_id)
+        if target_id:
+            query = query.filter_by(target_id=target_id)
+        if relation_type:
+            query = query.filter_by(relation_type=relation_type)
+
+        return query.all()
+
+    def trace_calls(self, project_id: str, entity_id: str, depth: int = 3) -> Dict[str, Any]:
+        """追踪函数调用链"""
+
+        def _trace_recursive(current_id: str, current_depth: int, visited: set) -> List[Dict]:
+            if current_depth >= depth or current_id in visited:
+                return []
+
+            visited.add(current_id)
+
+            # 查询当前实体调用的函数
+            relations = self.query_relations(
+                project_id=project_id,
+                source_id=current_id,
+                relation_type="calls"
+            )
+
+            calls = []
+            for rel in relations:
+                target_entity = self.query_entity(project_id, rel.target_id)
+                if target_entity:
+                    call_info = {
+                        "entity_id": target_entity.entity_id,
+                        "name": target_entity.name,
+                        "qualified_name": target_entity.qualified_name,
+                        "file_path": target_entity.file_path,
+                        "line_number": target_entity.line_number,
+                        "depth": current_depth + 1,
+                        "calls": _trace_recursive(target_entity.entity_id, current_depth + 1, visited)
+                    }
+                    calls.append(call_info)
+
+            return calls
+
+        root_entity = self.query_entity(project_id, entity_id)
+        if not root_entity:
+            return {"error": "Entity not found"}
+
+        return {
+            "root": {
+                "entity_id": root_entity.entity_id,
+                "name": root_entity.name,
+                "qualified_name": root_entity.qualified_name,
+                "file_path": root_entity.file_path,
+                "line_number": root_entity.line_number
+            },
+            "call_tree": _trace_recursive(entity_id, 0, set())
+        }
+
+    def find_dependencies(self, project_id: str, entity_id: str) -> Dict[str, Any]:
+        """查找实体依赖"""
+
+        # 向前依赖（这个实体依赖谁）
+        outgoing = self.query_relations(project_id=project_id, source_id=entity_id)
+
+        # 向后依赖（谁依赖这个实体）
+        incoming = self.query_relations(project_id=project_id, target_id=entity_id)
+
+        # 获取实体详情
+        def _get_entity_info(entity_id: str) -> Dict:
+            entity = self.query_entity(project_id, entity_id)
+            if entity:
+                return {
+                    "entity_id": entity.entity_id,
+                    "name": entity.name,
+                    "type": entity.entity_type,
+                    "file_path": entity.file_path
+                }
+            return {"entity_id": entity_id, "name": "unknown"}
+
+        return {
+            "entity": _get_entity_info(entity_id),
+            "depends_on": [
+                {
+                    "target": _get_entity_info(rel.target_id),
+                    "relation_type": rel.relation_type
+                }
+                for rel in outgoing
+            ],
+            "depended_by": [
+                {
+                    "source": _get_entity_info(rel.source_id),
+                    "relation_type": rel.relation_type
+                }
+                for rel in incoming
+            ]
+        }
+
+    def query_architecture(self, project_id: str) -> Dict[str, Any]:
+        """查询项目架构"""
+
+        project = self.db.query(CodeProject).filter_by(project_id=project_id).first()
+        if not project:
+            return {"error": "Project not found"}
+
+        # 统计各类型实体
+        entity_stats = {}
+        for entity_type in ["class", "function", "method", "module"]:
+            count = self.db.query(CodeEntityModel).filter_by(
+                project_id=project_id,
+                entity_type=entity_type
+            ).count()
+            entity_stats[entity_type] = count
+
+        # 统计各类型关系
+        relation_stats = {}
+        for rel_type in ["calls", "imports", "inherits", "contains"]:
+            count = self.db.query(CodeRelationModel).filter_by(
+                project_id=project_id,
+                relation_type=rel_type
+            ).count()
+            relation_stats[rel_type] = count
+
+        # 获取所有文件
+        files = self.db.query(CodeEntityModel.file_path).filter_by(
+            project_id=project_id
+        ).distinct().all()
+
+        # 按目录分组
+        file_tree = {}
+        for (file_path,) in files:
+            parts = file_path.split('/')
+            current = file_tree
+            for part in parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            current[parts[-1]] = None  # 文件节点
+
+        return {
+            "project": {
+                "project_id": project.project_id,
+                "name": project.name,
+                "language": project.language,
+                "total_files": project.total_files,
+                "total_lines": project.total_lines,
+                "total_entities": project.total_entities,
+                "total_relations": project.total_relations,
+                "status": project.status,
+                "analyzed_at": project.analyzed_at.isoformat() if project.analyzed_at else None
+            },
+            "entity_stats": entity_stats,
+            "relation_stats": relation_stats,
+            "file_tree": file_tree
+        }
+
+    def search_by_name(self, project_id: str, name: str, fuzzy: bool = True) -> List[CodeEntityModel]:
+        """按名称搜索实体"""
+        query = self.db.query(CodeEntityModel).filter_by(project_id=project_id)
+
+        if fuzzy:
+            query = query.filter(CodeEntityModel.name.like(f"%{name}%"))
+        else:
+            query = query.filter_by(name=name)
+
+        return query.all()
+
+
+# ==================== 测试代码 ====================
+
+def test_storage():
+    """测试存储功能"""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # 创建数据库连接
+    engine = create_engine("mysql+pymysql://root:Wxwy.2025%40%23@localhost:3306/mcp_db?charset=utf8mb4")
+    Base.metadata.create_all(engine)
+
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    # 创建服务
+    service = CodeKnowledgeGraphService(db)
+
+    # 测试创建项目
+    project = service.create_project(
+        project_id="test_project_001",
+        name="Test Project",
+        path="/test/path"
+    )
+
+    print(f"✓ 项目创建成功: {project.project_id}")
+
+    db.close()
+
+
+if __name__ == "__main__":
+    test_storage()

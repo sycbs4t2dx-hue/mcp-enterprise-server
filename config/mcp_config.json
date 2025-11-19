@@ -1,0 +1,27 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "Wxwy.2025@#",
+    "database": "mcp_db"
+  },
+  "ai": {
+    "provider": "anthropic",
+    "api_key": "sk-PQUiZiGT0qpc7IIO5cQ0DeRmxKLJOu9f778c0bB947144757AcF66b36A9F2B469",
+    "model": "claude-3-5-sonnet-20241022",
+    "timeout": 30
+  },
+  "server": {
+    "name": "mcp-unified-server",
+    "version": "2.0.0",
+    "log_level": "INFO",
+    "log_file": "logs/mcp_server.log"
+  },
+  "performance": {
+    "max_workers": 4,
+    "request_timeout": 300,
+    "db_pool_size": 10,
+    "db_max_overflow": 20
+  }
+}

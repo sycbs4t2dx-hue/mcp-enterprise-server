@@ -1,0 +1,17 @@
+{"timestamp": "2025-11-19T10:48:53.259530Z", "level": "INFO", "logger": "__main__", "message": "=== mcp-unified-server v2.0.0 ===", "module": "mcp_server_unified", "function": "__init__", "line": 77}
+{"timestamp": "2025-11-19T10:48:53.259859Z", "level": "INFO", "logger": "__main__", "message": "MCP协议版本: 2024-11-05", "module": "mcp_server_unified", "function": "__init__", "line": 78}
+{"timestamp": "2025-11-19T10:48:53.259904Z", "level": "INFO", "logger": "__main__", "message": "连接数据库...", "module": "mcp_server_unified", "function": "_init_services", "line": 113}
+{"timestamp": "2025-11-19T10:48:53.260203Z", "level": "INFO", "logger": "__main__", "message": "初始化基础服务...", "module": "mcp_server_unified", "function": "_init_services", "line": 124}
+{"timestamp": "2025-11-19T10:48:53.267780Z", "level": "INFO", "logger": "src.mcp_core.services.redis_client", "message": "Redis连接成功", "module": "redis_client", "function": "__init__", "line": 47}
+{"timestamp": "2025-11-19T10:48:53.280746Z", "level": "INFO", "logger": "src.mcp_core.services.vector_db", "message": "Milvus连接成功", "module": "vector_db", "function": "__init__", "line": 69}
+{"timestamp": "2025-11-19T10:48:53.282324Z", "level": "INFO", "logger": "src.mcp_core.services.embedding_service", "message": "加载嵌入模型", "module": "embedding_service", "function": "__init__", "line": 35}
+{"timestamp": "2025-11-19T10:48:53.284251Z", "level": "INFO", "logger": "sentence_transformers.SentenceTransformer", "message": "Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2", "module": "SentenceTransformer", "function": "__init__", "line": 227}
+{"timestamp": "2025-11-19T10:48:59.248713Z", "level": "INFO", "logger": "src.mcp_core.services.embedding_service", "message": "嵌入模型加载成功", "module": "embedding_service", "function": "__init__", "line": 47}
+{"timestamp": "2025-11-19T10:48:59.248935Z", "level": "INFO", "logger": "src.mcp_core.services.memory_service", "message": "记忆服务初始化完成", "module": "memory_service", "function": "__init__", "line": 40, "extra": {}}
+{"timestamp": "2025-11-19T10:48:59.249054Z", "level": "INFO", "logger": "__main__", "message": "初始化AI服务...", "module": "mcp_server_unified", "function": "_init_services", "line": 138}
+{"timestamp": "2025-11-19T10:48:59.314968Z", "level": "INFO", "logger": "__main__", "message": "✅ AI服务已启用 (anthropic/claude-3-5-sonnet-20241022)", "module": "mcp_server_unified", "function": "_init_services", "line": 148}
+{"timestamp": "2025-11-19T10:48:59.315079Z", "level": "INFO", "logger": "__main__", "message": "✅ 所有服务初始化完成", "module": "mcp_server_unified", "function": "_init_services", "line": 152}
+{"timestamp": "2025-11-19T10:48:59.315120Z", "level": "INFO", "logger": "__main__", "message": "等待客户端连接...", "module": "mcp_server_unified", "function": "run", "line": 432}
+{"timestamp": "2025-11-19T10:48:59.315158Z", "level": "INFO", "logger": "__main__", "message": "提供 37 个MCP工具", "module": "mcp_server_unified", "function": "get_all_tools", "line": 209}
+{"timestamp": "2025-11-19T10:48:59.315191Z", "level": "INFO", "logger": "__main__", "message": "工具数量: 37", "module": "mcp_server_unified", "function": "run", "line": 433}
+{"timestamp": "2025-11-19T10:48:59.315333Z", "level": "INFO", "logger": "__main__", "message": "服务器已关闭", "module": "mcp_server_unified", "function": "cleanup", "line": 453}

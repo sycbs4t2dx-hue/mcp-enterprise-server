@@ -1,0 +1,129 @@
+{"timestamp": "2025-11-19T14:15:46.521968Z", "level": "INFO", "logger": "mcp_server_unified", "message": "=== mcp-unified-server v2.0.0 ===", "module": "mcp_server_unified", "function": "__init__", "line": 77}
+{"timestamp": "2025-11-19T14:15:46.522218Z", "level": "INFO", "logger": "mcp_server_unified", "message": "MCP协议版本: 2024-11-05", "module": "mcp_server_unified", "function": "__init__", "line": 78}
+{"timestamp": "2025-11-19T14:15:46.522273Z", "level": "INFO", "logger": "mcp_server_unified", "message": "连接数据库...", "module": "mcp_server_unified", "function": "_init_services", "line": 113}
+{"timestamp": "2025-11-19T14:15:46.522640Z", "level": "INFO", "logger": "mcp_server_unified", "message": "初始化基础服务...", "module": "mcp_server_unified", "function": "_init_services", "line": 124}
+{"timestamp": "2025-11-19T14:15:46.531312Z", "level": "INFO", "logger": "mcp_core.services.redis_client", "message": "Redis连接成功", "module": "redis_client", "function": "__init__", "line": 47}
+{"timestamp": "2025-11-19T14:15:46.550343Z", "level": "INFO", "logger": "mcp_core.services.vector_db", "message": "Milvus连接成功", "module": "vector_db", "function": "__init__", "line": 69}
+{"timestamp": "2025-11-19T14:15:46.552533Z", "level": "INFO", "logger": "mcp_core.services.embedding_service", "message": "加载嵌入模型", "module": "embedding_service", "function": "__init__", "line": 35}
+{"timestamp": "2025-11-19T14:15:46.555179Z", "level": "INFO", "logger": "sentence_transformers.SentenceTransformer", "message": "Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2", "module": "SentenceTransformer", "function": "__init__", "line": 227}
+{"timestamp": "2025-11-19T14:15:54.989216Z", "level": "INFO", "logger": "mcp_core.services.embedding_service", "message": "嵌入模型加载成功", "module": "embedding_service", "function": "__init__", "line": 47}
+{"timestamp": "2025-11-19T14:15:54.989453Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆服务初始化完成", "module": "memory_service", "function": "__init__", "line": 40, "extra": {}}
+{"timestamp": "2025-11-19T14:15:54.989570Z", "level": "INFO", "logger": "mcp_server_unified", "message": "初始化AI服务...", "module": "mcp_server_unified", "function": "_init_services", "line": 138}
+{"timestamp": "2025-11-19T14:15:55.056333Z", "level": "INFO", "logger": "mcp_server_unified", "message": "✅ AI服务已启用 (anthropic/claude-3-5-sonnet-20241022)", "module": "mcp_server_unified", "function": "_init_services", "line": 148}
+{"timestamp": "2025-11-19T14:15:55.056486Z", "level": "INFO", "logger": "mcp_server_unified", "message": "✅ 所有服务初始化完成", "module": "mcp_server_unified", "function": "_init_services", "line": 152}
+
+======================================================================
+  🚀 MCP Enterprise Server v2.0.0
+======================================================================
+
+📡 监听地址: http://0.0.0.0:8765
+🌐 局域网地址: http://192.168.1.34:8765
+{"timestamp": "2025-11-19T14:15:55.057024Z", "level": "INFO", "logger": "mcp_server_unified", "message": "提供 37 个MCP工具", "module": "mcp_server_unified", "function": "get_all_tools", "line": 209}
+🔧 工具数量: 37
+
+⚡ 限流: 100请求/60秒
+🔌 最大连接数: 1000
+
+📋 管理端点:
+  • 信息页面: http://192.168.1.34:8765/info
+  • 健康检查: http://192.168.1.34:8765/health
+  • 统计数据: http://192.168.1.34:8765/stats
+  • Prometheus: http://192.168.1.34:8765/metrics
+
+======================================================================
+
+{"timestamp": "2025-11-19T14:16:30.997188Z", "level": "INFO", "logger": "mcp_server_unified", "message": "提供 37 个MCP工具", "module": "mcp_server_unified", "function": "get_all_tools", "line": 209}
+[GET] /health - 200 (0.001s)
+{"timestamp": "2025-11-19T14:16:30.998067Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:30 +0800] \"GET /health HTTP/1.1\" 200 339 \"-\" \"curl/8.7.1\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][14d958f7] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:16:58.747868Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#1] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:16:58.748236Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+/Users/mac/Library/Python/3.9/lib/python/site-packages/jieba/_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Building prefix dict from the default dictionary ...
+{"timestamp": "2025-11-19T14:16:59.131917Z", "level": "DEBUG", "logger": "jieba", "message": "Building prefix dict from the default dictionary ...", "module": "__init__", "function": "initialize", "line": 113}
+Loading model from cache /var/folders/9g/6s1h4ty52rn91rxb8nfq58jm0000gn/T/jieba.cache
+{"timestamp": "2025-11-19T14:16:59.132053Z", "level": "DEBUG", "logger": "jieba", "message": "Loading model from cache /var/folders/9g/6s1h4ty52rn91rxb8nfq58jm0000gn/T/jieba.cache", "module": "__init__", "function": "initialize", "line": 132}
+Loading model cost 0.368 seconds.
+{"timestamp": "2025-11-19T14:16:59.499986Z", "level": "DEBUG", "logger": "jieba", "message": "Loading model cost 0.368 seconds.", "module": "__init__", "function": "initialize", "line": 164}
+Prefix dict has been built successfully.
+{"timestamp": "2025-11-19T14:16:59.500090Z", "level": "DEBUG", "logger": "jieba", "message": "Prefix dict has been built successfully.", "module": "__init__", "function": "initialize", "line": 166}
+{"timestamp": "2025-11-19T14:16:59.543055Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "长期记忆检索完成: 5/9条", "module": "memory_service", "function": "_retrieve_long_memories", "line": 417, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.546327Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆检索完成", "module": "memory_service", "function": "retrieve_memory", "line": 282, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.546488Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#1] 完成 (0.799s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][14d958f7] 响应 [ID:1]: OK (0.801s)
+[POST] / - 200 (0.801s)
+{"timestamp": "2025-11-19T14:16:59.546877Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:58 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][94434a77] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:16:59.550117Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#2] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:16:59.550230Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:16:59.586674Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "长期记忆检索完成: 5/10条", "module": "memory_service", "function": "_retrieve_long_memories", "line": 417, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.593528Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆检索完成", "module": "memory_service", "function": "retrieve_memory", "line": 282, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.593901Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#2] 完成 (0.044s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][94434a77] 响应 [ID:1]: OK (0.044s)
+[POST] / - 200 (0.044s)
+{"timestamp": "2025-11-19T14:16:59.594341Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:59 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][7e895f45] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:16:59.597202Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#3] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:16:59.597306Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:16:59.617509Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "长期记忆检索完成: 5/10条", "module": "memory_service", "function": "_retrieve_long_memories", "line": 417, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.619217Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆检索完成", "module": "memory_service", "function": "retrieve_memory", "line": 282, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.619323Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#3] 完成 (0.022s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][7e895f45] 响应 [ID:1]: OK (0.022s)
+[POST] / - 200 (0.022s)
+{"timestamp": "2025-11-19T14:16:59.619585Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:59 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][4ffd1c02] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:16:59.622552Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#4] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:16:59.622668Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:16:59.639971Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "长期记忆检索完成: 5/7条", "module": "memory_service", "function": "_retrieve_long_memories", "line": 417, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.642101Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆检索完成", "module": "memory_service", "function": "retrieve_memory", "line": 282, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.642215Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#4] 完成 (0.020s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][4ffd1c02] 响应 [ID:1]: OK (0.020s)
+[POST] / - 200 (0.020s)
+{"timestamp": "2025-11-19T14:16:59.642455Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:59 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][b04968d8] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:16:59.645076Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#5] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:16:59.645161Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:16:59.665717Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "长期记忆检索完成: 5/5条", "module": "memory_service", "function": "_retrieve_long_memories", "line": 417, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.668648Z", "level": "INFO", "logger": "mcp_core.services.memory_service", "message": "记忆检索完成", "module": "memory_service", "function": "retrieve_memory", "line": 282, "extra": {}}
+{"timestamp": "2025-11-19T14:16:59.668754Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#5] 完成 (0.024s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][b04968d8] 响应 [ID:1]: OK (0.024s)
+[POST] / - 200 (0.024s)
+{"timestamp": "2025-11-19T14:16:59.668981Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:16:59 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][64c376a3] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:20:04.146161Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#6] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:20:04.146992Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:20:04.148512Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#6] 完成 (0.003s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][64c376a3] 响应 [ID:1]: OK (0.003s)
+[POST] / - 200 (0.003s)
+{"timestamp": "2025-11-19T14:20:04.148931Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:20:04 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][072bb660] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:20:04.150273Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#7] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:20:04.150332Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:20:04.151189Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#7] 完成 (0.001s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][072bb660] 响应 [ID:1]: OK (0.001s)
+[POST] / - 200 (0.001s)
+{"timestamp": "2025-11-19T14:20:04.151314Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:20:04 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][9ba4b947] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:20:04.152507Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#8] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:20:04.152559Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:20:04.153107Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#8] 完成 (0.001s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][9ba4b947] 响应 [ID:1]: OK (0.001s)
+[POST] / - 200 (0.001s)
+{"timestamp": "2025-11-19T14:20:04.153220Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:20:04 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][a9afbc36] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:20:04.154318Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#9] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:20:04.154361Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:20:04.154835Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#9] 完成 (0.001s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][a9afbc36] 响应 [ID:1]: OK (0.001s)
+[POST] / - 200 (0.001s)
+{"timestamp": "2025-11-19T14:20:04.154937Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:20:04 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+[MCP][e374cf7a] 请求 [ID:1]: tools/call
+{"timestamp": "2025-11-19T14:20:04.156041Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#10] tools/call", "module": "mcp_server_unified", "function": "handle_request", "line": 225}
+{"timestamp": "2025-11-19T14:20:04.156081Z", "level": "INFO", "logger": "mcp_server_unified", "message": "执行工具: retrieve_memory", "module": "mcp_server_unified", "function": "_handle_tools_call", "line": 280}
+{"timestamp": "2025-11-19T14:20:04.156526Z", "level": "INFO", "logger": "mcp_server_unified", "message": "[#10] 完成 (0.000s)", "module": "mcp_server_unified", "function": "handle_request", "line": 241}
+[MCP][e374cf7a] 响应 [ID:1]: OK (0.001s)
+[POST] / - 200 (0.001s)
+{"timestamp": "2025-11-19T14:20:04.156616Z", "level": "INFO", "logger": "aiohttp.access", "message": "127.0.0.1 [19/Nov/2025:22:20:04 +0800] \"POST / HTTP/1.1\" 200 305 \"-\" \"python-requests/2.31.0\"", "module": "web_log", "function": "log", "line": 214}
+/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
