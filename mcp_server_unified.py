@@ -18,8 +18,37 @@ sys.path.insert(0, os.path.dirname(__file__))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# 导入配置管理
-from config_manager import load_config
+# Database configuration
+import os
+import urllib.parse
+from types import SimpleNamespace
+
+DB_PASSWORD = os.getenv("DB_PASSWORD", "Wxwy.2025@#")
+DB_PASSWORD_ENCODED = urllib.parse.quote_plus(DB_PASSWORD)
+DB_URL = f"mysql+pymysql://root:{DB_PASSWORD_ENCODED}@localhost:3306/mcp_db?charset=utf8mb4"
+
+# Create a simple config object
+def create_config():
+    """Create a simple configuration object"""
+    config = SimpleNamespace()
+    config.server = SimpleNamespace(
+        name="MCP统一服务器",
+        version="2.0.0",
+        protocol_version="2024-11-05",
+        log_level="INFO",
+        log_file="logs/mcp_server.log"
+    )
+    config.database = SimpleNamespace(
+        url=DB_URL
+    )
+    config.performance = SimpleNamespace(
+        db_pool_size=10,
+        db_max_overflow=20
+    )
+    config.ai = SimpleNamespace(
+        enabled=False
+    )
+    return config
 
 # 动态导入服务（避免路径问题）
 try:
@@ -37,6 +66,8 @@ try:
     from src.mcp_core.code_mcp_tools import MCP_TOOLS as CODE_TOOLS
     from src.mcp_core.context_mcp_tools import MCP_TOOLS as CONTEXT_TOOLS, ProjectContextTools
     from src.mcp_core.quality_mcp_tools import QUALITY_GUARDIAN_TOOLS, QualityGuardianTools
+    from src.mcp_core.services.error_firewall_service import get_error_firewall_service
+    from src.mcp_core.api.v1.tools.error_firewall import ERROR_FIREWALL_TOOLS, error_firewall_record, error_firewall_check, error_firewall_query, error_firewall_stats
 except ImportError:
     # 尝试相对导入
     import sys
@@ -56,6 +87,8 @@ except ImportError:
     from mcp_core.code_mcp_tools import MCP_TOOLS as CODE_TOOLS
     from mcp_core.context_mcp_tools import MCP_TOOLS as CONTEXT_TOOLS, ProjectContextTools
     from mcp_core.quality_mcp_tools import QUALITY_GUARDIAN_TOOLS, QualityGuardianTools
+    from mcp_core.services.error_firewall_service import get_error_firewall_service
+    from mcp_core.api.v1.tools.error_firewall import ERROR_FIREWALL_TOOLS, error_firewall_record, error_firewall_check, error_firewall_query, error_firewall_stats
 
 
 class UnifiedMCPServer:
@@ -69,7 +102,7 @@ class UnifiedMCPServer:
             config_file: 配置文件路径（可选）
         """
         # 加载配置
-        self.config = load_config(config_file)
+        self.config = create_config()
 
         # 初始化日志
         self._setup_logging()
@@ -131,21 +164,35 @@ class UnifiedMCPServer:
             self.context_tools = ProjectContextTools(self.context_manager)
             self.quality_tools = QualityGuardianTools(self.quality_service)
 
+            # 初始化错误防火墙服务 (Phase 5)
+            self.logger.info("初始化错误防火墙服务...")
+            self.error_firewall = get_error_firewall_service(self.db_session)
+            self.logger.info("✅ 错误防火墙服务已启用")
+
             # 初始化AI服务（可选）
             self.ai_service = None
             self.ai_tools = None
             if self.config.ai.enabled:
-                self.logger.info("初始化AI服务...")
-                self.ai_service = AICodeUnderstandingService(
-                    api_key=self.config.ai.api_key,
-                    model=self.config.ai.model
-                )
-                self.ai_tools = AIAssistantTools(
-                    self.ai_service,
-                    self.code_service,
-                    self.context_manager
-                )
-                self.logger.info(f"✅ AI服务已启用 ({self.config.ai.provider}/{self.config.ai.model})")
+                try:
+                    self.logger.info("初始化AI服务...")
+                    self.ai_service = AICodeUnderstandingService(
+                        api_key=self.config.ai.api_key,
+                        model=self.config.ai.model
+                    )
+                    self.ai_tools = AIAssistantTools(
+                        self.ai_service,
+                        self.code_service,
+                        self.context_manager
+                    )
+                    self.logger.info(f"✅ AI服务已启用 ({self.config.ai.provider}/{self.config.ai.model})")
+                except ImportError as e:
+                    self.logger.warning(f"⚠️  AI服务未启用 - 缺少依赖包: {e}")
+                    self.ai_service = None
+                    self.ai_tools = None
+                except Exception as e:
+                    self.logger.warning(f"⚠️  AI服务初始化失败: {e}")
+                    self.ai_service = None
+                    self.ai_tools = None
             else:
                 self.logger.warning("⚠️  AI服务未启用 (未配置API Key)")
 
@@ -156,7 +203,7 @@ class UnifiedMCPServer:
             raise
 
     def get_all_tools(self) -> list:
-        """返回所有37个MCP工具定义"""
+        """返回所有41个MCP工具定义"""
         tools = []
 
         # 基础记忆工具 (2个)
@@ -205,6 +252,9 @@ class UnifiedMCPServer:
 
         # 质量守护工具 (8个)
         tools.extend(QUALITY_GUARDIAN_TOOLS)
+
+        # 错误防火墙工具 (4个) - Phase 5
+        tools.extend(ERROR_FIREWALL_TOOLS)
 
         self.logger.info(f"提供 {len(tools)} 个MCP工具")
         return tools
@@ -291,6 +341,8 @@ class UnifiedMCPServer:
                 result = self._call_ai_tool(tool_name, arguments)
             elif tool_name in [t["name"] for t in QUALITY_GUARDIAN_TOOLS]:
                 result = self._call_quality_tool(tool_name, arguments)
+            elif tool_name in [t["name"] for t in ERROR_FIREWALL_TOOLS]:
+                result = self._call_error_firewall_tool(tool_name, arguments)
             else:
                 raise ValueError(f"Unknown tool: {tool_name}")
 
@@ -454,6 +506,41 @@ class UnifiedMCPServer:
         if method:
             return method(**args)
         return {"success": False, "error": f"Quality tool not found: {tool_name}"}
+
+    async def _call_error_firewall_tool_async(self, tool_name: str, args: Dict) -> Dict:
+        """错误防火墙工具 (异步)"""
+        # 添加db_session参数
+        args_with_session = {**args, "db_session": self.db_session}
+
+        if tool_name == "error_firewall_record":
+            return await error_firewall_record(**args_with_session)
+        elif tool_name == "error_firewall_check":
+            return await error_firewall_check(**args_with_session)
+        elif tool_name == "error_firewall_query":
+            return await error_firewall_query(**args_with_session)
+        elif tool_name == "error_firewall_stats":
+            return await error_firewall_stats(**args_with_session)
+        else:
+            return {"success": False, "error": f"Error firewall tool not found: {tool_name}"}
+
+    def _call_error_firewall_tool(self, tool_name: str, args: Dict) -> Dict:
+        """错误防火墙工具 (同步包装)"""
+        import asyncio
+
+        # 检查是否有运行中的事件循环
+        try:
+            loop = asyncio.get_running_loop()
+            # 如果有运行中的循环，创建新线程执行
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    self._call_error_firewall_tool_async(tool_name, args)
+                )
+                return future.result()
+        except RuntimeError:
+            # 没有运行中的循环，直接运行
+            return asyncio.run(self._call_error_firewall_tool_async(tool_name, args))
 
     def _error_response(self, request_id: Any, code: int, message: str) -> Dict[str, Any]:
         """构造错误响应"""

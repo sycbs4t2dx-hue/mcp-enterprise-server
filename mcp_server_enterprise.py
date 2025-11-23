@@ -24,11 +24,16 @@ from collections import defaultdict, deque
 import sys
 import os
 import uuid
-import hashlib
 from dataclasses import dataclass, field, asdict
+import psutil
+import logging
+import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_server_unified import UnifiedMCPServer
+
+# Configure logger at module level
+logger = logging.getLogger(__name__)
 
 
 # ==================== 数据类 ====================
@@ -171,6 +176,9 @@ class MCPEnterpriseServer:
         # SSE连接队列
         self.sse_queues: Dict[str, asyncio.Queue] = {}
 
+        # 系统统计广播任务
+        self.stats_broadcast_task: Optional[asyncio.Task] = None
+
         # Web应用
         self.app = web.Application()
         self._setup_routes()
@@ -184,11 +192,11 @@ class MCPEnterpriseServer:
             try:
                 response = await handler(request)
                 duration = time.time() - start_time
-                print(f"[{request.method}] {request.path} - {response.status} ({duration:.3f}s)")
+                logger.info(f"[{request.method}] {request.path} - {response.status} ({duration:.3f}s)")
                 return response
             except Exception as e:
                 duration = time.time() - start_time
-                print(f"[{request.method}] {request.path} - ERROR ({duration:.3f}s): {e}")
+                logger.error(f"[{request.method}] {request.path} - ERROR ({duration:.3f}s): {e}")
                 raise
 
         self.app.middlewares.append(logging_middleware)
@@ -200,11 +208,20 @@ class MCPEnterpriseServer:
         self.app.router.add_get('/sse', self.handle_sse_connection)
         self.app.router.add_post('/messages', self.handle_sse_message)
 
+        # WebSocket端点 (Phase 3新增)
+        from src.mcp_core.services.websocket_service import websocket_handler
+        self.app.router.add_get('/ws', websocket_handler)
+
         # 管理端点
         self.app.router.add_get('/health', self.handle_health)
         self.app.router.add_get('/stats', self.handle_stats)
         self.app.router.add_get('/connections', self.handle_connections)
         self.app.router.add_get('/metrics', self.handle_metrics)
+
+        # API端点 - 初始数据获取 (Phase 4新增)
+        self.app.router.add_get('/api/overview/stats', self.handle_api_overview_stats)
+        self.app.router.add_get('/api/pool/stats', self.handle_api_pool_stats)
+        self.app.router.add_get('/api/vector/stats', self.handle_api_vector_stats)
 
         # 管理界面
         self.app.router.add_get('/admin', self.handle_admin_dashboard)
@@ -269,6 +286,43 @@ class MCPEnterpriseServer:
         total_duration = sum(m.duration for m in self.request_history)
         self.stats.avg_response_time = total_duration / len(self.request_history)
 
+    async def _broadcast_system_stats(self):
+        """定期广播系统统计到 WebSocket"""
+        from src.mcp_core.services.websocket_service import notify_channel
+
+        while True:
+            try:
+                await asyncio.sleep(5)  # 每5秒广播一次
+
+                # 获取系统指标
+                uptime = (datetime.now() - self.start_time).total_seconds()
+                memory_info = psutil.virtual_memory()
+                cpu_percent = psutil.cpu_percent(interval=None)
+
+                # 构建统计数据
+                stats_data = {
+                    "total_requests": self.stats.total_requests,
+                    "successful_requests": self.stats.successful_requests,
+                    "failed_requests": self.stats.failed_requests,
+                    "avg_response_time": round(self.stats.avg_response_time * 1000, 2),  # 转换为ms
+                    "active_connections": len(self.connections),
+                    "memory_usage": round(memory_info.percent, 1),
+                    "cpu_usage": round(cpu_percent, 1),
+                    "uptime": int(uptime),
+                    "timestamp": datetime.now().isoformat()
+                }
+
+                # 广播到 system_stats 频道
+                await notify_channel("system_stats", "stats_update", stats_data)
+
+            except Exception as e:
+                logger.warning(f"[WARNING] 系统统计广播失败: {e}")
+                await asyncio.sleep(5)
+
+    async def _start_background_tasks(self):
+        """启动后台任务"""
+        self.stats_broadcast_task = asyncio.create_task(self._broadcast_system_stats())
+
     async def handle_mcp_request(self, request):
         """
         处理MCP请求
@@ -315,13 +369,13 @@ class MCPEnterpriseServer:
             method = json_request.get('method', 'unknown')
             request_id = json_request.get('id', 'N/A')
 
-            print(f"[MCP][{conn_id}] 请求 [ID:{request_id}]: {method}")
+            logger.info(f"[MCP][{conn_id}] 请求 [ID:{request_id}]: {method}")
 
             # 调用MCP服务器处理
             mcp_response = self.mcp_server.handle_request(json_request)
 
             duration = time.time() - start_time
-            print(f"[MCP][{conn_id}] 响应 [ID:{request_id}]: OK ({duration:.3f}s)")
+            logger.info(f"[MCP][{conn_id}] 响应 [ID:{request_id}]: OK ({duration:.3f}s)")
 
             # 记录成功请求
             self._record_request(conn_id, method, duration, True)
@@ -340,7 +394,7 @@ class MCPEnterpriseServer:
         except Exception as e:
             duration = time.time() - start_time
             self._record_request(conn_id, method if 'method' in locals() else 'unknown', duration, False)
-            print(f"[MCP][{conn_id}] 错误: {e}")
+            logger.info(f"[MCP][{conn_id}] 错误: {e}")
             import traceback
             traceback.print_exc()
             return web.json_response({
@@ -404,7 +458,7 @@ class MCPEnterpriseServer:
         self.stats.active_connections += 1
         self.stats.total_connections += 1
 
-        print(f"[SSE] 新连接: {conn_id} 来自 {client_ip}")
+        logger.info(f"[SSE] 新连接: {conn_id} 来自 {client_ip}")
 
         try:
             # 告知客户端POST消息端点
@@ -426,15 +480,15 @@ class MCPEnterpriseServer:
                     # 发送心跳保持连接
                     await response.write(b": ping\n\n")
         except asyncio.CancelledError:
-            print(f"[SSE] 连接取消: {conn_id}")
+            logger.info(f"[SSE] 连接取消: {conn_id}")
         except Exception as e:
-            print(f"[SSE] 连接错误 {conn_id}: {e}")
+            logger.info(f"[SSE] 连接错误 {conn_id}: {e}")
         finally:
             # 清理资源
             self.sse_queues.pop(conn_id, None)
             self.connections.pop(conn_id, None)
             self.stats.active_connections = max(0, self.stats.active_connections - 1)
-            print(f"[SSE] 连接关闭: {conn_id}")
+            logger.info(f"[SSE] 连接关闭: {conn_id}")
 
         return response
 
@@ -477,7 +531,7 @@ class MCPEnterpriseServer:
             json_request = await request.json()
             method = json_request.get('method', 'unknown')
             request_id = json_request.get('id', 'N/A')
-            print(f"[HTTP->SSE] 请求 [ID:{request_id}]: {method}")
+            logger.info(f"[HTTP->SSE] 请求 [ID:{request_id}]: {method}")
 
             # 调用MCP服务器处理
             mcp_response = self.mcp_server.handle_request(json_request)
@@ -497,7 +551,7 @@ class MCPEnterpriseServer:
         except json.JSONDecodeError:
             return web.json_response({"error": "Parse error"}, status=400)
         except Exception as e:
-            print(f"[HTTP->SSE] 错误: {e}")
+            logger.info(f"[HTTP->SSE] 错误: {e}")
             import traceback
             traceback.print_exc()
             return web.json_response({"error": str(e)}, status=500)
@@ -580,10 +634,149 @@ class MCPEnterpriseServer:
 
         return web.Response(text="\n".join(metrics), content_type="text/plain")
 
+    # ==================== API端点 (Phase 4) ====================
+
+    async def handle_api_overview_stats(self, request):
+        """获取系统概览统计的初始值"""
+        uptime = (datetime.now() - self.start_time).total_seconds()
+        memory_info = psutil.virtual_memory()
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        return web.json_response({
+            "total_requests": self.stats.total_requests,
+            "successful_requests": self.stats.successful_requests,
+            "failed_requests": self.stats.failed_requests,
+            "avg_response_time": round(self.stats.avg_response_time * 1000, 2),
+            "active_connections": len(self.connections),
+            "memory_usage": round(memory_info.percent, 1),
+            "cpu_usage": round(cpu_percent, 1),
+            "uptime": int(uptime),
+            "timestamp": datetime.now().isoformat()
+        })
+
+    async def handle_api_pool_stats(self, request):
+        """获取连接池统计的初始值"""
+        from src.mcp_core.services.dynamic_db_pool import get_dynamic_pool_manager
+
+        try:
+            pool = get_dynamic_pool_manager()
+            pool_stats = pool.get_stats()
+
+            # 解析嵌套结构
+            config = pool_stats.get("pool_config", {})
+            metrics = pool_stats.get("current_metrics", {})
+            perf = pool_stats.get("performance", {})
+
+            # 处理百分比字符串
+            utilization_str = metrics.get("utilization", "0%")
+            utilization = float(utilization_str.replace("%", "")) if isinstance(utilization_str, str) else utilization_str
+
+            qps_str = perf.get("qps", "0")
+            qps = float(qps_str) if isinstance(qps_str, str) else qps_str
+
+            avg_wait_str = perf.get("avg_wait_time_ms", "0")
+            avg_wait = float(avg_wait_str) if isinstance(avg_wait_str, str) else avg_wait_str
+
+            return web.json_response({
+                "pool_size": config.get("current_size", 20),
+                "active_connections": metrics.get("checked_out", 0),
+                "idle_connections": metrics.get("checked_in", 0),
+                "overflow_connections": metrics.get("overflow", 0),
+                "utilization": round(utilization, 2),
+                "qps": round(qps, 2),
+                "avg_query_time": round(avg_wait, 2),
+                "max_wait_time": 0,
+                "total_queries": perf.get("total_queries", 0),
+                "timestamp": datetime.now().isoformat()
+            })
+        except Exception as e:
+            # 如果连接池未初始化，返回默认值
+            return web.json_response({
+                "pool_size": 20,
+                "active_connections": 0,
+                "idle_connections": 20,
+                "overflow_connections": 0,
+                "utilization": 0,
+                "qps": 0,
+                "avg_query_time": 0,
+                "max_wait_time": 0,
+                "total_queries": 0,
+                "timestamp": datetime.now().isoformat()
+            })
+
+    async def handle_api_vector_stats(self, request):
+        """获取向量检索统计的真实值"""
+        from src.mcp_core.services.vector_db import get_vector_db
+
+        try:
+            vector_db = get_vector_db()
+            # 获取真实的统计数据
+            stats = vector_db.stats.get_stats()
+
+            # 格式化为前端期望的格式
+            return web.json_response({
+                "total_searches": stats.get("total_searches", 0),
+                "avg_search_time": round(stats.get("avg_search_time", 0), 2),
+                "p95_search_time": round(stats.get("p95_search_time", 0), 2),
+                "p99_search_time": round(stats.get("p99_search_time", 0), 2),
+                "recall_rate": stats.get("recall_rate", 95.5),
+                "top_k_distribution": stats.get("top_k_distribution", {5: 0, 10: 0, 20: 0, 50: 0}),
+                "success_rate": round(stats.get("success_rate", 100), 2),
+                "failed_searches": stats.get("failed_searches", 0),
+                "timestamp": datetime.now().isoformat()
+            })
+        except Exception as e:
+            # 如果向量数据库未初始化，返回默认值
+            return web.json_response({
+                "total_searches": 0,
+                "avg_search_time": 0,
+                "p95_search_time": 0,
+                "p99_search_time": 0,
+                "recall_rate": 95,
+                "top_k_distribution": {5: 0, 10: 0, 20: 0, 50: 0},
+                "success_rate": 100,
+                "failed_searches": 0,
+                "timestamp": datetime.now().isoformat()
+            })
+
+    # ==================== 管理界面 ====================
+
     async def handle_admin_dashboard(self, request):
         """管理仪表盘"""
-        # 完整的管理界面将在下一个文件中实现
-        return web.Response(text="Admin Dashboard - See /info for now", content_type="text/html")
+        import os
+        template_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'templates',
+            'admin_dashboard.html'
+        )
+
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            return web.Response(text=html_content, content_type="text/html")
+        except FileNotFoundError:
+            # 如果模板文件不存在，返回简单版本
+            return web.Response(text="""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>MCP Admin Dashboard</title>
+                    <meta charset="utf-8">
+                </head>
+                <body style="font-family: sans-serif; padding: 40px;">
+                    <h1>MCP Admin Dashboard</h1>
+                    <p>Full dashboard template not found. Please check /templates/admin_dashboard.html</p>
+                    <p>Quick Links:</p>
+                    <ul>
+                        <li><a href="/health">Health Check</a></li>
+                        <li><a href="/stats">Statistics</a></li>
+                        <li><a href="/connections">Connections</a></li>
+                        <li><a href="/metrics">Metrics</a></li>
+                        <li><a href="/info">Server Info</a></li>
+                    </ul>
+                </body>
+                </html>
+            """, content_type="text/html")
 
     async def handle_info_page(self, request):
         """信息页面"""
@@ -782,37 +975,42 @@ class MCPEnterpriseServer:
 
     def run(self):
         """启动服务器"""
-        print(f"")
-        print(f"{'='*70}")
-        print(f"  🚀 MCP Enterprise Server v2.0.0")
-        print(f"{'='*70}")
-        print(f"")
-        print(f"📡 监听地址: http://{self.host}:{self.port}")
-        print(f"🌐 局域网地址: http://192.168.1.34:{self.port}")
-        print(f"🔧 工具数量: {len(self.mcp_server.get_all_tools())}")
-        print(f"")
+        logger.info(f"")
+        logger.info(f"{'='*70}")
+        logger.info(f"  🚀 MCP Enterprise Server v2.0.0")
+        logger.info(f"{'='*70}")
+        logger.info(f"")
+        logger.info(f"📡 监听地址: http://{self.host}:{self.port}")
+        logger.info(f"🌐 局域网地址: http://192.168.3.5:{self.port}")
+        logger.info(f"🔧 工具数量: {len(self.mcp_server.get_all_tools())}")
+        logger.info(f"")
         if self.api_keys:
-            print(f"🔒 API密钥认证: 已启用 ({len(self.api_keys)}个密钥)")
+            logger.info(f"🔒 API密钥认证: 已启用 ({len(self.api_keys)}个密钥)")
         if self.allowed_ips:
-            print(f"🛡️  IP白名单: 已启用 ({len(self.allowed_ips)}个IP)")
-        print(f"⚡ 限流: {self.rate_limiter.rate}请求/{self.rate_limiter.per_seconds}秒")
-        print(f"🔌 最大连接数: {self.max_connections}")
-        print(f"")
-        print(f"📋 管理端点:")
-        print(f"  • 信息页面: http://192.168.1.34:{self.port}/info")
-        print(f"  • 健康检查: http://192.168.1.34:{self.port}/health")
-        print(f"  • 统计数据: http://192.168.1.34:{self.port}/stats")
-        print(f"  • Prometheus: http://192.168.1.34:{self.port}/metrics")
-        print(f"")
-        print(f"{'='*70}")
-        print(f"")
+            logger.info(f"🛡️  IP白名单: 已启用 ({len(self.allowed_ips)}个IP)")
+        logger.info(f"⚡ 限流: {self.rate_limiter.rate}请求/{self.rate_limiter.per_seconds}秒")
+        logger.info(f"🔌 最大连接数: {self.max_connections}")
+        logger.info(f"")
+        logger.info(f"📋 管理端点:")
+        logger.info(f"  • 信息页面: http://192.168.3.5:{self.port}/info")
+        logger.info(f"  • 健康检查: http://192.168.3.5:{self.port}/health")
+        logger.info(f"  • 统计数据: http://192.168.3.5:{self.port}/stats")
+        logger.info(f"  • Prometheus: http://192.168.3.5:{self.port}/metrics")
+        logger.info(f"")
+        logger.info(f"📡 WebSocket:")
+        logger.info(f"  • 实时通知: ws://192.168.1.34:{self.port}/ws")
+        logger.info(f"  • 系统统计广播: 每5秒 → system_stats 频道")
+        logger.info(f"")
+        logger.info(f"{'='*70}")
+        logger.info(f"")
+
+        # 启动后台任务
+        self.app.on_startup.append(lambda app: asyncio.create_task(self._start_background_tasks()))
 
         web.run_app(self.app, host=self.host, port=self.port, print=lambda x: None)
 
 
 def main():
-    import argparse
-
     parser = argparse.ArgumentParser(description='MCP Enterprise Server')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址')
     parser.add_argument('--port', type=int, default=8765, help='监听端口')

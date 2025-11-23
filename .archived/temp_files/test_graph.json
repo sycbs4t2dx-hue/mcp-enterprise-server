@@ -1,0 +1,73 @@
+{
+  "nodes": [
+    {
+      "id": "9f2862347f6e",
+      "name": "graph_generator_tool",
+      "type": "file",
+      "path": "graph_generator_tool.py",
+      "description": "Python模块，包含4个类，1个函数",
+      "size": 21227,
+      "complexity": 54,
+      "x": 0,
+      "y": 0,
+      "metadata": {
+        "language": "python",
+        "imports": [
+          "os",
+          "json",
+          "asyncio",
+          "typing",
+          "pathlib",
+          "typing",
+          "dataclasses",
+          "src.mcp_core.services.project_graph_generator",
+          "src.mcp_core.common.logger"
+        ],
+        "classes": [
+          {
+            "name": "ToolResponse",
+            "methods": [],
+            "docstring": null
+          },
+          {
+            "name": "Tool",
+            "methods": [],
+            "docstring": null
+          },
+          {
+            "name": "GraphGeneratorTool",
+            "methods": [
+              "_generate_statistics",
+              "_generate_html_visualization"
+            ],
+            "docstring": "生成项目知识图谱的MCP工具\n\n使用方法：\n1. 分析当前项目：generate_project_graph()\n2. 分析指定项目：generate_project_graph(path=\"/path/to/project\")\n3. 自定义选项：generate_project_graph(path=\"/path\", format=\"html\")"
+          },
+          {
+            "name": "ViewGraphTool",
+            "methods": [],
+            "docstring": "查看已生成的项目图谱"
+          }
+        ],
+        "functions": [
+          {
+            "name": "register_tools",
+            "args": [],
+            "docstring": "注册图谱生成工具"
+          }
+        ],
+        "lines": 642
+      }
+    }
+  ],
+  "edges": [],
+  "metadata": {
+    "project_name": "mcp_tools",
+    "project_path": "/Users/mac/Downloads/MCP/src/mcp_tools",
+    "total_files": 1,
+    "total_dependencies": 0,
+    "analysis_time": "2025-11-20T23:44:50.627535",
+    "language_stats": {
+      "python": 1
+    }
+  }
+}

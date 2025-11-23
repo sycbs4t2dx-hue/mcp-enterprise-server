@@ -158,7 +158,7 @@ class MCPHTTPServer:
   "mcpServers": {
     "mcp-remote": {
       "command": "python3",
-      "args": ["/path/to/mcp_client_http.py", "http://192.168.1.34:8765"]
+      "args": ["/path/to/mcp_client_http.py", "http://192.168.3.5:8765"]
     }
   }
 }</pre>
@@ -272,10 +272,10 @@ class MCPHTTPServer:
         """启动HTTP服务器"""
         print(f"🚀 MCP HTTP服务器启动中...")
         print(f"📡 监听地址: http://{self.host}:{self.port}")
-        print(f"🌐 局域网地址: http://192.168.1.34:{self.port}")
+        print(f"🌐 局域网地址: http://192.168.3.5:{self.port}")
         print(f"🔧 工具数量: {len(self.mcp_server.get_all_tools())}")
         print(f"")
-        print(f"访问 http://192.168.1.34:{self.port} 查看文档")
+        print(f"访问 http://192.168.3.5:{self.port} 查看文档")
         print(f"")
 
         web.run_app(self.app, host=self.host, port=self.port)

@@ -49,11 +49,32 @@ class RedisClient:
             logger.error(f"Redis连接失败: {e}")
             raise
 
+        # 初始化多层缓存
+        from .multi_level_cache import MultiLevelCache
+        self.multi_level_cache = MultiLevelCache(
+            l1_capacity=1000,
+            l1_ttl=60,
+            l2_ttl=300,
+            redis_client=self
+        )
+        logger.info("多层缓存已启用")
+
     def _mask_url(self, url: str) -> str:
         """遮蔽URL中的密码"""
         import re
 
         return re.sub(r"(:\/\/[^:]+:)([^@]+)(@)", r"\1***\3", url)
+
+    def _redis_get_raw(self, key: str) -> Optional[Any]:
+        """Redis原生get (内部使用，供多层缓存调用)"""
+        try:
+            cached = self.client.get(key)
+            if cached:
+                return json.loads(cached.decode("utf-8"))
+            return None
+        except Exception as e:
+            logger.error(f"Redis get失败: {e}")
+            return None
 
     # ==================== 短期记忆操作 ====================
 
@@ -176,7 +197,52 @@ class RedisClient:
             logger.error(f"删除短期记忆失败: {e}", extra={"memory_id": memory_id})
             return False
 
-    # ==================== 缓存操作 ====================
+    # ==================== 缓存操作 (集成多层缓存) ====================
+
+    def cache_get(self, key: str) -> Optional[Any]:
+        """
+        获取缓存 (优先从多层缓存)
+
+        Args:
+            key: 缓存键
+
+        Returns:
+            缓存值
+        """
+        # 使用多层缓存
+        return self.multi_level_cache.get(
+            key,
+            l3_loader=lambda: self._redis_get_raw(key)
+        )
+
+    def cache_set(self, key: str, value: Any, ttl: int = 300) -> bool:
+        """
+        设置缓存 (同时写入多层)
+
+        Args:
+            key: 缓存键
+            value: 缓存值
+            ttl: TTL (秒)
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 使用多层缓存
+            self.multi_level_cache.set(key, value, l2_ttl=ttl)
+            return True
+        except Exception as e:
+            logger.error(f"缓存设置失败: {e}")
+            return False
+
+    def cache_delete(self, key: str) -> bool:
+        """删除缓存"""
+        try:
+            self.multi_level_cache.delete(key)
+            return True
+        except Exception as e:
+            logger.error(f"缓存删除失败: {e}")
+            return False
 
     def cache_retrieval_result(
         self, project_id: str, query: str, result: Dict[str, Any], ttl: int = 604800

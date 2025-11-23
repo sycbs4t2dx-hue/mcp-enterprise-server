@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP知识图谱可视化中心</title>
+
+    <!-- 依赖库 -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 布局 */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 320px;
+            background: var(--card-bg);
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar h1 {
+            color: var(--secondary-color);
+            font-size: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar h3 {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 20px 0 12px;
+        }
+
+        /* 项目列表 */
+        .project-list {
+            list-style: none;
+        }
+
+        .project-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .project-item:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+
+        .project-item.active {
+            background: var(--bg-gradient);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .project-item .name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .project-item .stats {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            background: var(--card-bg);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .toolbar button {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 20px;
+            color: var(--primary-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toolbar button:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .toolbar button.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* 视图容器 */
+        .view-container {
+            flex: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #graph-3d, #graph-2d {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            min-width: 280px;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .info-panel.hidden {
+            transform: translateX(120%);
+        }
+
+        .info-panel h3 {
+            color: var(--secondary-color);
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* 时间轴 */
+        .timeline-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .timeline-container.show {
+            display: block;
+        }
+
+        .timeline-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        /* 搜索框 */
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* 搜索结果 */
+        .search-results {
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .search-result {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-result:hover {
+            background: #e9ecef;
+        }
+
+        /* 加载动画 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 模态框 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        /* 对比视图 */
+        .compare-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .compare-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .compare-graph {
+            flex: 1;
+            background: white;
+            border-radius: var(--border-radius);
+            margin: 10px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: absolute;
+                z-index: 100;
+            }
+
+            .info-panel {
+                right: 10px;
+                top: 10px;
+                min-width: 200px;
+            }
+
+            .timeline-container {
+                width: 90%;
+            }
+        }
+
+        /* 图例 */
+        .legend {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        /* 过滤器 */
+        .filters {
+            margin-top: 20px;
+        }
+
+        .filter-group {
+            margin-bottom: 12px;
+        }
+
+        .filter-checkbox {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar" id="sidebar">
+            <h1>
+                <span>🗺️</span>
+                <span>知识图谱中心</span>
+            </h1>
+
+            <!-- 项目列表 -->
+            <h3>项目列表</h3>
+            <ul class="project-list" id="project-list">
+                <li class="loading">加载中...</li>
+            </ul>
+
+            <!-- 搜索 -->
+            <h3>搜索</h3>
+            <input
+                type="text"
+                class="search-box"
+                id="search-input"
+                placeholder="搜索文件、类、函数..."
+            >
+            <div class="search-results" id="search-results"></div>
+
+            <!-- 过滤器 -->
+            <h3>过滤器</h3>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" class="filter-checkbox" data-lang="python" checked>
+                        Python
+                    </label>
+                </div>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" class="filter-checkbox" data-lang="javascript" checked>
+                        JavaScript
+                    </label>
+                </div>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" class="filter-checkbox" data-lang="typescript" checked>
+                        TypeScript
+                    </label>
+                </div>
+            </div>
+
+            <!-- 图例 -->
+            <h3>图例</h3>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3776ab;"></div>
+                    <span>Python</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f7df1e;"></div>
+                    <span>JavaScript</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3178c6;"></div>
+                    <span>TypeScript</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #808080;"></div>
+                    <span>其他</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <button onclick="toggleSidebar()">☰</button>
+                <button class="active" onclick="setViewMode('3d')">3D视图</button>
+                <button onclick="setViewMode('2d')">2D视图</button>
+                <button onclick="setViewMode('timeline')">时间轴</button>
+                <button onclick="setViewMode('compare')">对比</button>
+                <button onclick="resetView()">重置</button>
+                <button onclick="toggleAnimation()">动画</button>
+                <button onclick="exportGraph()">导出</button>
+            </div>
+
+            <!-- 视图容器 -->
+            <div class="view-container">
+                <!-- 3D图谱 -->
+                <div id="graph-3d"></div>
+
+                <!-- 2D图谱 (隐藏) -->
+                <div id="graph-2d" style="display: none;"></div>
+
+                <!-- 加载动画 -->
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p style="color: white; margin-top: 20px;">加载中...</p>
+                </div>
+
+                <!-- 信息面板 -->
+                <div class="info-panel" id="info-panel">
+                    <h3>📊 统计信息</h3>
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-nodes">0</div>
+                            <div class="stat-label">节点</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-edges">0</div>
+                            <div class="stat-label">连接</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-complexity">0</div>
+                            <div class="stat-label">复杂度</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-languages">0</div>
+                            <div class="stat-label">语言</div>
+                        </div>
+                    </div>
+
+                    <h3>📝 项目信息</h3>
+                    <div id="project-info">
+                        <p>选择一个项目查看详情</p>
+                    </div>
+                </div>
+
+                <!-- 时间轴容器 -->
+                <div class="timeline-container" id="timeline-container">
+                    <h3>⏰ 项目时间轴</h3>
+                    <input
+                        type="range"
+                        class="timeline-slider"
+                        id="timeline-slider"
+                        min="0"
+                        max="100"
+                        value="100"
+                    >
+                    <div id="timeline-info">
+                        <p>时间: <span id="timeline-date">-</span></p>
+                        <p>触发: <span id="timeline-trigger">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 节点详情模态框 -->
+    <div class="modal" id="node-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">节点详情</h2>
+            <div id="modal-body">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let graph3D = null;
+        let currentProject = null;
+        let currentGraph = null;
+        let projects = {};
+        let ws = null;
+        let animationEnabled = true;
+        let currentViewMode = '3d';
+
+        // 初始化
+        window.onload = function() {
+            initWebSocket();
+            loadProjects();
+            init3DGraph();
+        };
+
+        // WebSocket连接
+        function initWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket连接成功');
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket连接关闭');
+                // 尝试重连
+                setTimeout(initWebSocket, 5000);
+            };
+        }
+
+        // 处理WebSocket消息
+        function handleWebSocketMessage(message) {
+            if (message.type === 'update') {
+                if (message.project_id === currentProject) {
+                    // 更新当前项目
+                    loadProjectGraph(currentProject);
+                }
+            }
+        }
+
+        // 加载项目列表
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+
+                const listEl = document.getElementById('project-list');
+                listEl.innerHTML = '';
+
+                data.forEach(project => {
+                    projects[project.id] = project;
+
+                    const li = document.createElement('li');
+                    li.className = 'project-item';
+                    li.innerHTML = `
+                        <div class="name">${project.name}</div>
+                        <div class="stats">
+                            节点: ${project.stats?.nodes || 0} |
+                            边: ${project.stats?.edges || 0}
+                        </div>
+                    `;
+                    li.onclick = () => selectProject(project.id);
+                    listEl.appendChild(li);
+                });
+
+                // 自动选择第一个项目
+                if (data.length > 0) {
+                    selectProject(data[0].id);
+                }
+            } catch (error) {
+                console.error('加载项目失败:', error);
+            }
+        }
+
+        // 选择项目
+        async function selectProject(projectId) {
+            currentProject = projectId;
+
+            // 更新UI
+            document.querySelectorAll('.project-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event?.target?.closest('.project-item')?.classList.add('active');
+
+            // 加载项目图谱
+            await loadProjectGraph(projectId);
+        }
+
+        // 加载项目图谱
+        async function loadProjectGraph(projectId) {
+            try {
+                document.getElementById('loading').style.display = 'block';
+
+                const response = await fetch(`/api/project/${projectId}/graph`);
+                const graph = await response.json();
+
+                currentGraph = graph;
+                updateGraph(graph);
+                updateStats(graph);
+
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                console.error('加载图谱失败:', error);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 初始化3D图谱
+        function init3DGraph() {
+            const container = document.getElementById('graph-3d');
+
+            graph3D = ForceGraph3D()(container)
+                .graphData({ nodes: [], links: [] })
+                .nodeLabel('name')
+                .nodeColor(node => getNodeColor(node))
+                .nodeOpacity(0.9)
+                .linkDirectionalArrowLength(3.5)
+                .linkDirectionalArrowRelPos(1)
+                .linkOpacity(0.3)
+                .onNodeClick(handleNodeClick)
+                .onNodeHover(handleNodeHover)
+                .onLinkClick(handleLinkClick);
+        }
+
+        // 更新图谱
+        function updateGraph(graph) {
+            if (!graph3D) return;
+
+            const graphData = {
+                nodes: graph.nodes,
+                links: graph.edges.map(e => ({
+                    source: e.source,
+                    target: e.target,
+                    value: e.weight || 1
+                }))
+            };
+
+            graph3D.graphData(graphData);
+
+            if (animationEnabled) {
+                graph3D.d3Force('charge').strength(-300);
+            }
+        }
+
+        // 更新统计
+        function updateStats(graph) {
+            document.getElementById('stat-nodes').textContent = graph.nodes.length;
+            document.getElementById('stat-edges').textContent = graph.edges.length;
+
+            // 计算语言数量
+            const languages = new Set(graph.nodes.map(n => n.metadata?.language || 'unknown'));
+            document.getElementById('stat-languages').textContent = languages.size;
+
+            // 计算平均复杂度
+            const avgComplexity = graph.nodes.reduce((sum, n) => sum + (n.complexity || 0), 0) / graph.nodes.length;
+            document.getElementById('stat-complexity').textContent = Math.round(avgComplexity);
+
+            // 更新项目信息
+            const project = projects[currentProject];
+            if (project) {
+                document.getElementById('project-info').innerHTML = `
+                    <p><strong>名称:</strong> ${project.name}</p>
+                    <p><strong>路径:</strong> ${project.path}</p>
+                    <p><strong>更新:</strong> ${new Date().toLocaleString()}</p>
+                `;
+            }
+        }
+
+        // 节点颜色
+        function getNodeColor(node) {
+            const colors = {
+                'python': '#3776ab',
+                'javascript': '#f7df1e',
+                'typescript': '#3178c6',
+                'java': '#007396',
+                'go': '#00add8',
+                'rust': '#dea584',
+                'unknown': '#808080'
+            };
+
+            const lang = node.metadata?.language || 'unknown';
+            return colors[lang] || colors.unknown;
+        }
+
+        // 节点点击
+        function handleNodeClick(node) {
+            showNodeDetails(node);
+        }
+
+        // 节点悬停
+        function handleNodeHover(node) {
+            // 高亮相关节点
+        }
+
+        // 链接点击
+        function handleLinkClick(link) {
+            console.log('Link clicked:', link);
+        }
+
+        // 显示节点详情
+        function showNodeDetails(node) {
+            document.getElementById('modal-title').textContent = node.name;
+            document.getElementById('modal-body').innerHTML = `
+                <p><strong>路径:</strong> ${node.path}</p>
+                <p><strong>类型:</strong> ${node.type}</p>
+                <p><strong>大小:</strong> ${node.size} bytes</p>
+                <p><strong>复杂度:</strong> ${node.complexity || 0}</p>
+                <p><strong>语言:</strong> ${node.metadata?.language || 'unknown'}</p>
+                <hr>
+                <h3>元数据</h3>
+                <pre>${JSON.stringify(node.metadata, null, 2)}</pre>
+            `;
+            document.getElementById('node-modal').classList.add('show');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('node-modal').classList.remove('show');
+        }
+
+        // 搜索
+        document.getElementById('search-input').oninput = function() {
+            const query = this.value.toLowerCase();
+
+            if (!currentGraph) return;
+
+            // 高亮匹配的节点
+            currentGraph.nodes.forEach(node => {
+                node.highlight = node.name.toLowerCase().includes(query) ||
+                               node.path.toLowerCase().includes(query);
+            });
+
+            // 更新图谱颜色
+            graph3D.nodeColor(node =>
+                node.highlight ? '#ff0000' : getNodeColor(node)
+            );
+
+            // 显示搜索结果
+            showSearchResults(query);
+        };
+
+        // 显示搜索结果
+        function showSearchResults(query) {
+            const resultsEl = document.getElementById('search-results');
+            resultsEl.innerHTML = '';
+
+            if (!query || !currentGraph) return;
+
+            const matches = currentGraph.nodes.filter(node =>
+                node.name.toLowerCase().includes(query) ||
+                node.path.toLowerCase().includes(query)
+            ).slice(0, 10);
+
+            matches.forEach(node => {
+                const div = document.createElement('div');
+                div.className = 'search-result';
+                div.innerHTML = `<strong>${node.name}</strong><br><small>${node.path}</small>`;
+                div.onclick = () => focusNode(node);
+                resultsEl.appendChild(div);
+            });
+        }
+
+        // 聚焦节点
+        function focusNode(node) {
+            if (!graph3D) return;
+
+            // 将相机聚焦到节点
+            graph3D.cameraPosition(
+                { x: node.x, y: node.y, z: node.z + 100 }, // 新位置
+                node, // 看向的目标
+                1000  // 动画时间
+            );
+
+            // 高亮节点
+            node.highlight = true;
+            graph3D.nodeColor(n => n === node ? '#ff0000' : getNodeColor(n));
+
+            // 显示详情
+            showNodeDetails(node);
+        }
+
+        // 切换侧边栏
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        // 设置视图模式
+        function setViewMode(mode) {
+            currentViewMode = mode;
+
+            // 更新按钮状态
+            document.querySelectorAll('.toolbar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 切换视图
+            if (mode === 'timeline') {
+                document.getElementById('timeline-container').classList.add('show');
+                loadTimeline();
+            } else {
+                document.getElementById('timeline-container').classList.remove('show');
+            }
+
+            if (mode === '2d') {
+                document.getElementById('graph-3d').style.display = 'none';
+                document.getElementById('graph-2d').style.display = 'block';
+                init2DGraph();
+            } else {
+                document.getElementById('graph-3d').style.display = 'block';
+                document.getElementById('graph-2d').style.display = 'none';
+            }
+        }
+
+        // 初始化2D图谱
+        function init2DGraph() {
+            // TODO: 实现2D图谱
+        }
+
+        // 加载时间轴
+        async function loadTimeline() {
+            if (!currentProject) return;
+
+            try {
+                const response = await fetch(`/api/project/${currentProject}/timeline`);
+                const timeline = await response.json();
+
+                const slider = document.getElementById('timeline-slider');
+                slider.max = timeline.length - 1;
+                slider.value = timeline.length - 1;
+
+                slider.oninput = function() {
+                    const snapshot = timeline[this.value];
+                    document.getElementById('timeline-date').textContent =
+                        new Date(snapshot.timestamp).toLocaleString();
+                    document.getElementById('timeline-trigger').textContent =
+                        snapshot.trigger;
+
+                    // 加载历史快照
+                    loadSnapshot(snapshot.id);
+                };
+
+                // 显示最新快照信息
+                if (timeline.length > 0) {
+                    const latest = timeline[0];
+                    document.getElementById('timeline-date').textContent =
+                        new Date(latest.timestamp).toLocaleString();
+                    document.getElementById('timeline-trigger').textContent =
+                        latest.trigger;
+                }
+            } catch (error) {
+                console.error('加载时间轴失败:', error);
+            }
+        }
+
+        // 加载快照
+        async function loadSnapshot(snapshotId) {
+            try {
+                const response = await fetch(`/api/project/${currentProject}/snapshot/${snapshotId}`);
+                const snapshot = await response.json();
+
+                if (snapshot.graph) {
+                    updateGraph(snapshot.graph);
+                }
+            } catch (error) {
+                console.error('加载快照失败:', error);
+            }
+        }
+
+        // 重置视图
+        function resetView() {
+            if (graph3D) {
+                graph3D.zoomToFit(400);
+            }
+
+            // 清除高亮
+            if (currentGraph) {
+                currentGraph.nodes.forEach(node => {
+                    delete node.highlight;
+                });
+                graph3D.nodeColor(node => getNodeColor(node));
+            }
+
+            // 清除搜索
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results').innerHTML = '';
+        }
+
+        // 切换动画
+        function toggleAnimation() {
+            animationEnabled = !animationEnabled;
+
+            if (graph3D) {
+                if (animationEnabled) {
+                    graph3D.d3Force('charge').strength(-300);
+                    graph3D.resumeAnimation();
+                } else {
+                    graph3D.pauseAnimation();
+                }
+            }
+
+            event.target.textContent = animationEnabled ? '暂停' : '动画';
+        }
+
+        // 导出图谱
+        function exportGraph() {
+            if (!currentGraph) return;
+
+            const dataStr = JSON.stringify(currentGraph, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+            const link = document.createElement('a');
+            link.setAttribute('href', dataUri);
+            link.setAttribute('download', `graph_${currentProject}_${Date.now()}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 过滤器
+        document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
+            checkbox.onchange = function() {
+                applyFilters();
+            };
+        });
+
+        function applyFilters() {
+            if (!currentGraph) return;
+
+            const activeLanguages = Array.from(document.querySelectorAll('.filter-checkbox:checked'))
+                .map(cb => cb.dataset.lang);
+
+            // 过滤节点
+            const filteredNodes = currentGraph.nodes.filter(node => {
+                const lang = node.metadata?.language || 'unknown';
+                return activeLanguages.includes(lang) || activeLanguages.length === 0;
+            });
+
+            // 更新图谱
+            const filteredGraph = {
+                nodes: filteredNodes,
+                edges: currentGraph.edges.filter(edge => {
+                    const sourceExists = filteredNodes.some(n => n.id === edge.source);
+                    const targetExists = filteredNodes.some(n => n.id === edge.target);
+                    return sourceExists && targetExists;
+                })
+            };
+
+            updateGraph(filteredGraph);
+        }
+    </script>
+</body>
+</html>

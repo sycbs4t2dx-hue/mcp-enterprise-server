@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Frontend Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .header {
+            background: #001529;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #52c41a;
+            color: white;
+        }
+        .status.disconnected {
+            background: #f5222d;
+            color: white;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .logs {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 MCP Enterprise Server - Frontend Test</h1>
+        <p>WebSocket连接状态: <span id="status" class="status disconnected">未连接</span></p>
+    </div>
+
+    <div class="section">
+        <h2>连接信息</h2>
+        <p>前端地址: <a href="http://localhost:5175" target="_blank">http://localhost:5175</a></p>
+        <p>WebSocket地址: ws://localhost:8765/ws</p>
+        <p>API健康检查: <span id="api-health">检测中...</span></p>
+        <button onclick="testWebSocket()">测试WebSocket连接</button>
+        <button onclick="checkHealth()">检查API健康</button>
+        <button onclick="window.open('http://localhost:5175', '_blank')">打开前端页面</button>
+    </div>
+
+    <div class="section">
+        <h2>实时指标</h2>
+        <div class="metrics" id="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="cpu">-</div>
+                <div class="metric-label">CPU使用率</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="memory">-</div>
+                <div class="metric-label">内存使用率</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="connections">0</div>
+                <div class="metric-label">活跃连接</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="messages">0</div>
+                <div class="metric-label">消息数量</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>WebSocket日志</h2>
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f5222d' : type === 'success' ? '#52c41a' : '#1890ff';
+            logs.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            if (connected) {
+                status.textContent = '已连接';
+                status.className = 'status connected';
+            } else {
+                status.textContent = '未连接';
+                status.className = 'status disconnected';
+            }
+        }
+
+        function testWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+
+            const wsUrl = 'ws://localhost:8765/ws?client_id=test_' + Date.now();
+            log('正在连接WebSocket: ' + wsUrl);
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                log('WebSocket连接成功！', 'success');
+                updateStatus(true);
+                document.getElementById('connections').textContent = '1';
+
+                // 订阅频道
+                ws.send(JSON.stringify({
+                    action: 'subscribe',
+                    channel: 'system_stats'
+                }));
+                log('订阅系统统计频道');
+
+                ws.send(JSON.stringify({
+                    action: 'subscribe',
+                    channel: 'system_alerts'
+                }));
+                log('订阅系统告警频道');
+            };
+
+            ws.onmessage = function(event) {
+                messageCount++;
+                document.getElementById('messages').textContent = messageCount;
+
+                try {
+                    const data = JSON.parse(event.data);
+                    log('收到消息: ' + JSON.stringify(data).substring(0, 100) + '...');
+
+                    // 更新指标
+                    if (data.type === 'system_stats' && data.data) {
+                        if (data.data.cpu_percent !== undefined) {
+                            document.getElementById('cpu').textContent = data.data.cpu_percent.toFixed(1) + '%';
+                        }
+                        if (data.data.memory_percent !== undefined) {
+                            document.getElementById('memory').textContent = data.data.memory_percent.toFixed(1) + '%';
+                        }
+                    }
+                } catch (e) {
+                    log('解析消息失败: ' + e.message, 'error');
+                }
+            };
+
+            ws.onerror = function(error) {
+                log('WebSocket错误: ' + error, 'error');
+                updateStatus(false);
+            };
+
+            ws.onclose = function() {
+                log('WebSocket连接关闭');
+                updateStatus(false);
+                document.getElementById('connections').textContent = '0';
+            };
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch('http://localhost:8765/health');
+                const data = await response.json();
+
+                document.getElementById('api-health').innerHTML =
+                    `<span style="color: #52c41a">✅ 健康 (版本: ${data.version}, 运行时间: ${Math.floor(data.uptime_seconds / 60)}分钟)</span>`;
+
+                log('API健康检查成功: ' + JSON.stringify(data), 'success');
+            } catch (error) {
+                document.getElementById('api-health').innerHTML =
+                    `<span style="color: #f5222d">❌ 错误: ${error.message}</span>`;
+
+                log('API健康检查失败: ' + error.message, 'error');
+            }
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkHealth();
+            log('测试页面已加载，点击"测试WebSocket连接"按钮开始测试');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP项目知识图谱 - 可视化</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar h1 {
+            color: #2a5298;
+            font-size: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2a5298;
+        }
+
+        .legend {
+            margin-top: 20px;
+        }
+
+        .legend h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .graph-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: left;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .node:hover {
+            filter: brightness(1.2);
+        }
+
+        .node-label {
+            font-size: 12px;
+            text-anchor: middle;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .link {
+            fill: none;
+            stroke-opacity: 0.6;
+            transition: all 0.3s;
+        }
+
+        .link:hover {
+            stroke-opacity: 1;
+            stroke-width: 3;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 300px;
+            display: none;
+        }
+
+        .info-panel.show {
+            display: block;
+        }
+
+        .info-panel h3 {
+            color: #2a5298;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .info-panel p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .search-result-item {
+            padding: 8px;
+            cursor: pointer;
+            border-bottom: 1px solid #e0e0e0;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #e8e8e8;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>
+                <span>🗺️</span>
+                <span>项目知识图谱</span>
+            </h1>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">节点总数</span>
+                    <span class="stat-value" id="node-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">关系总数</span>
+                    <span class="stat-value" id="link-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">模块数量</span>
+                    <span class="stat-value" id="module-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Phase完成</span>
+                    <span class="stat-value">
+                        <span class="phase-badge">Phase 4</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>视图类型</label>
+                    <select id="view-type" onchange="changeView()">
+                        <option value="full">完整视图</option>
+                        <option value="modules">模块视图</option>
+                        <option value="services">服务视图</option>
+                        <option value="dependencies">依赖视图</option>
+                        <option value="ai">AI组件视图</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>布局算法</label>
+                    <select id="layout-type" onchange="changeLayout()">
+                        <option value="force">力导向布局</option>
+                        <option value="radial">径向布局</option>
+                        <option value="hierarchy">层次布局</option>
+                        <option value="circular">环形布局</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>搜索节点</label>
+                    <input type="text" id="search-input" placeholder="输入节点名称..." oninput="searchNodes()">
+                    <div id="search-results" class="search-results"></div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="loadGraphData()">刷新数据</button>
+                    <button onclick="resetView()">重置视图</button>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="exportGraph()">导出图谱</button>
+                    <button onclick="toggleAnimation()">动画开关</button>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h3>图例</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4CAF50"></div>
+                    <span>核心服务</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2196F3"></div>
+                    <span>AI模块</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF9800"></div>
+                    <span>数据模型</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #9C27B0"></div>
+                    <span>前端组件</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #F44336"></div>
+                    <span>配置文件</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #795548"></div>
+                    <span>工具脚本</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <svg id="graph"></svg>
+            <div class="tooltip"></div>
+            <div class="info-panel" id="info-panel">
+                <h3 id="info-title"></h3>
+                <p id="info-description"></p>
+                <p id="info-details"></p>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="zoom-btn" onclick="zoomOut()">-</button>
+                <button class="zoom-btn" onclick="resetZoom()">⟲</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 图谱数据
+        const graphData = {
+            nodes: [
+                // Phase 1 - 基础架构
+                { id: "learning_system", name: "学习系统", type: "core", phase: 1, description: "从编码会话中学习" },
+                { id: "pattern_recognizer", name: "模式识别器", type: "core", phase: 1, description: "识别代码模式" },
+                { id: "experience_manager", name: "经验管理器", type: "core", phase: 1, description: "管理编码经验" },
+                { id: "graph_generator", name: "图谱生成器", type: "core", phase: 1, description: "生成知识图谱" },
+                { id: "collaboration_controller", name: "协作控制器", type: "core", phase: 1, description: "多AI协作" },
+                { id: "database", name: "MySQL数据库", type: "data", phase: 1, description: "数据存储" },
+                { id: "redis", name: "Redis缓存", type: "data", phase: 1, description: "高速缓存" },
+                { id: "vectordb", name: "向量数据库", type: "data", phase: 1, description: "向量存储" },
+
+                // Phase 2 - 高级特性
+                { id: "embedding_service", name: "嵌入服务", type: "ai", phase: 2, description: "文本向量化" },
+                { id: "java_analyzer", name: "Java分析器", type: "core", phase: 2, description: "Java代码分析" },
+                { id: "redis_client", name: "Redis客户端", type: "data", phase: 2, description: "缓存管理" },
+                { id: "multi_cache", name: "多级缓存", type: "core", phase: 2, description: "缓存策略" },
+                { id: "dynamic_pool", name: "动态连接池", type: "core", phase: 2, description: "数据库连接池" },
+
+                // Phase 3 - 生产就绪
+                { id: "websocket_server", name: "WebSocket服务", type: "core", phase: 3, description: "实时通信" },
+                { id: "preset_patterns", name: "预置模式库", type: "data", phase: 3, description: "模式模板" },
+                { id: "test_framework", name: "测试框架", type: "tool", phase: 3, description: "自动化测试" },
+                { id: "docker_config", name: "Docker配置", type: "config", phase: 3, description: "容器化部署" },
+                { id: "deployment_scripts", name: "部署脚本", type: "tool", phase: 3, description: "自动化部署" },
+
+                // Phase 4 - AI集成
+                { id: "ai_model_manager", name: "AI模型管理器", type: "ai", phase: 4, description: "统一管理LLM" },
+                { id: "code_generator", name: "智能代码生成器", type: "ai", phase: 4, description: "AI生成代码" },
+                { id: "distributed_training", name: "分布式训练", type: "ai", phase: 4, description: "模型训练" },
+                { id: "security_system", name: "安全系统", type: "core", phase: 4, description: "企业级安全" },
+                { id: "performance_engine", name: "性能优化引擎", type: "core", phase: 4, description: "性能优化" },
+                { id: "operations_system", name: "智能运维", type: "core", phase: 4, description: "自动化运维" },
+
+                // 前端组件
+                { id: "project_graph", name: "项目图谱组件", type: "frontend", phase: 2, description: "可视化图谱" },
+                { id: "pattern_library", name: "模式库组件", type: "frontend", phase: 2, description: "模式浏览" },
+                { id: "experience_hub", name: "经验中心组件", type: "frontend", phase: 2, description: "经验展示" },
+                { id: "collaboration_monitor", name: "协作监控组件", type: "frontend", phase: 2, description: "协作监控" },
+                { id: "learning_dashboard", name: "学习仪表板", type: "frontend", phase: 2, description: "学习统计" },
+
+                // 企业服务器
+                { id: "mcp_server", name: "MCP企业服务器", type: "core", phase: 1, description: "主服务器" }
+            ],
+            links: [
+                // 核心依赖
+                { source: "mcp_server", target: "learning_system", type: "contains" },
+                { source: "mcp_server", target: "pattern_recognizer", type: "contains" },
+                { source: "mcp_server", target: "experience_manager", type: "contains" },
+                { source: "mcp_server", target: "graph_generator", type: "contains" },
+                { source: "mcp_server", target: "collaboration_controller", type: "contains" },
+                { source: "mcp_server", target: "websocket_server", type: "uses" },
+                { source: "mcp_server", target: "ai_model_manager", type: "uses" },
+
+                // 数据流
+                { source: "learning_system", target: "database", type: "writes" },
+                { source: "learning_system", target: "pattern_recognizer", type: "triggers" },
+                { source: "pattern_recognizer", target: "experience_manager", type: "feeds" },
+                { source: "experience_manager", target: "vectordb", type: "stores" },
+                { source: "graph_generator", target: "database", type: "reads" },
+                { source: "collaboration_controller", target: "redis", type: "coordinates" },
+
+                // AI组件关系
+                { source: "ai_model_manager", target: "code_generator", type: "powers" },
+                { source: "code_generator", target: "pattern_recognizer", type: "uses" },
+                { source: "code_generator", target: "experience_manager", type: "learns" },
+                { source: "distributed_training", target: "ai_model_manager", type: "trains" },
+                { source: "embedding_service", target: "vectordb", type: "generates" },
+
+                // 前端连接
+                { source: "project_graph", target: "graph_generator", type: "visualizes" },
+                { source: "pattern_library", target: "pattern_recognizer", type: "displays" },
+                { source: "experience_hub", target: "experience_manager", type: "shows" },
+                { source: "collaboration_monitor", target: "collaboration_controller", type: "monitors" },
+                { source: "learning_dashboard", target: "learning_system", type: "tracks" },
+
+                // 服务依赖
+                { source: "security_system", target: "database", type: "protects" },
+                { source: "performance_engine", target: "redis", type: "optimizes" },
+                { source: "operations_system", target: "docker_config", type: "manages" },
+                { source: "websocket_server", target: "redis", type: "publishes" },
+
+                // Phase 4 集成
+                { source: "code_generator", target: "security_system", type: "secured_by" },
+                { source: "distributed_training", target: "performance_engine", type: "optimized_by" },
+                { source: "operations_system", target: "deployment_scripts", type: "executes" }
+            ]
+        };
+
+        // 颜色映射
+        const colorMap = {
+            core: "#4CAF50",
+            ai: "#2196F3",
+            data: "#FF9800",
+            frontend: "#9C27B0",
+            config: "#F44336",
+            tool: "#795548"
+        };
+
+        // SVG和D3设置
+        const svg = d3.select("#graph");
+        const width = window.innerWidth - 350;
+        const height = window.innerHeight;
+        svg.attr("width", width).attr("height", height);
+
+        // 创建缩放行为
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        // 创建主容器
+        const g = svg.append("g");
+
+        // 创建力导向模拟
+        let simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-500))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(30));
+
+        let link, node, label;
+        let animationEnabled = true;
+
+        // 初始化图谱
+        function initGraph() {
+            // 清空现有内容
+            g.selectAll("*").remove();
+
+            // 添加箭头标记
+            const defs = g.append("defs");
+            defs.append("marker")
+                .attr("id", "arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 20)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#999");
+
+            // 创建链接
+            link = g.append("g")
+                .selectAll("line")
+                .data(graphData.links)
+                .enter().append("line")
+                .attr("class", "link")
+                .attr("stroke", "#999")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrow)");
+
+            // 创建节点
+            node = g.append("g")
+                .selectAll("circle")
+                .data(graphData.nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("r", d => d.type === "core" ? 20 : 15)
+                .attr("fill", d => colorMap[d.type])
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("mouseover", showTooltip)
+                .on("mouseout", hideTooltip)
+                .on("click", showNodeInfo);
+
+            // 添加标签
+            label = g.append("g")
+                .selectAll("text")
+                .data(graphData.nodes)
+                .enter().append("text")
+                .attr("class", "node-label")
+                .attr("dy", -25)
+                .text(d => d.name)
+                .style("font-size", "12px")
+                .style("fill", "#333");
+
+            // 更新模拟
+            simulation
+                .nodes(graphData.nodes)
+                .on("tick", ticked);
+
+            simulation.force("link")
+                .links(graphData.links);
+
+            // 更新统计
+            updateStats();
+        }
+
+        // 拖拽功能
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // 更新位置
+        function ticked() {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            label
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+        }
+
+        // 提示框
+        function showTooltip(event, d) {
+            const tooltip = d3.select(".tooltip");
+            tooltip
+                .html(`
+                    <strong>${d.name}</strong><br/>
+                    类型: ${d.type}<br/>
+                    Phase: ${d.phase}<br/>
+                    描述: ${d.description}
+                `)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 28) + "px")
+                .classed("show", true);
+        }
+
+        function hideTooltip() {
+            d3.select(".tooltip").classed("show", false);
+        }
+
+        // 显示节点信息
+        function showNodeInfo(event, d) {
+            const panel = document.getElementById("info-panel");
+            document.getElementById("info-title").textContent = d.name;
+            document.getElementById("info-description").textContent = d.description;
+
+            const connections = graphData.links.filter(l =>
+                l.source.id === d.id || l.target.id === d.id
+            );
+
+            document.getElementById("info-details").innerHTML = `
+                <strong>连接数:</strong> ${connections.length}<br/>
+                <strong>类型:</strong> ${d.type}<br/>
+                <strong>Phase:</strong> ${d.phase}
+            `;
+
+            panel.classList.add("show");
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById("node-count").textContent = graphData.nodes.length;
+            document.getElementById("link-count").textContent = graphData.links.length;
+
+            const modules = new Set(graphData.nodes.map(n => n.type));
+            document.getElementById("module-count").textContent = modules.size;
+        }
+
+        // 视图切换
+        function changeView() {
+            const viewType = document.getElementById("view-type").value;
+            // 根据视图类型过滤节点和链接
+            console.log("切换到视图:", viewType);
+        }
+
+        // 布局切换
+        function changeLayout() {
+            const layoutType = document.getElementById("layout-type").value;
+
+            if (layoutType === "radial") {
+                applyRadialLayout();
+            } else if (layoutType === "hierarchy") {
+                applyHierarchyLayout();
+            } else if (layoutType === "circular") {
+                applyCircularLayout();
+            } else {
+                // 恢复力导向布局
+                simulation.alpha(1).restart();
+            }
+        }
+
+        // 径向布局
+        function applyRadialLayout() {
+            const centerNode = graphData.nodes.find(n => n.id === "mcp_server");
+            const radius = Math.min(width, height) / 3;
+
+            graphData.nodes.forEach((node, i) => {
+                if (node === centerNode) {
+                    node.fx = width / 2;
+                    node.fy = height / 2;
+                } else {
+                    const angle = (i / graphData.nodes.length) * 2 * Math.PI;
+                    node.fx = width / 2 + radius * Math.cos(angle);
+                    node.fy = height / 2 + radius * Math.sin(angle);
+                }
+            });
+
+            simulation.alpha(0.5).restart();
+        }
+
+        // 层次布局
+        function applyHierarchyLayout() {
+            const phases = [1, 2, 3, 4];
+            const layerHeight = height / (phases.length + 1);
+
+            phases.forEach((phase, phaseIndex) => {
+                const nodesInPhase = graphData.nodes.filter(n => n.phase === phase);
+                const layerWidth = width / (nodesInPhase.length + 1);
+
+                nodesInPhase.forEach((node, nodeIndex) => {
+                    node.fx = layerWidth * (nodeIndex + 1);
+                    node.fy = layerHeight * (phaseIndex + 1);
+                });
+            });
+
+            simulation.alpha(0.5).restart();
+        }
+
+        // 环形布局
+        function applyCircularLayout() {
+            const radius = Math.min(width, height) / 3;
+            const angleStep = (2 * Math.PI) / graphData.nodes.length;
+
+            graphData.nodes.forEach((node, i) => {
+                const angle = i * angleStep;
+                node.fx = width / 2 + radius * Math.cos(angle);
+                node.fy = height / 2 + radius * Math.sin(angle);
+            });
+
+            simulation.alpha(0.5).restart();
+        }
+
+        // 搜索节点
+        function searchNodes() {
+            const searchTerm = document.getElementById("search-input").value.toLowerCase();
+            const resultsDiv = document.getElementById("search-results");
+
+            if (searchTerm === "") {
+                resultsDiv.innerHTML = "";
+                return;
+            }
+
+            const matches = graphData.nodes.filter(n =>
+                n.name.toLowerCase().includes(searchTerm)
+            );
+
+            resultsDiv.innerHTML = matches.map(n => `
+                <div class="search-result-item" onclick="focusNode('${n.id}')">
+                    ${n.name}
+                </div>
+            `).join("");
+        }
+
+        // 聚焦节点
+        function focusNode(nodeId) {
+            const targetNode = graphData.nodes.find(n => n.id === nodeId);
+            if (targetNode) {
+                const scale = 2;
+                const translate = [
+                    width / 2 - scale * targetNode.x,
+                    height / 2 - scale * targetNode.y
+                ];
+
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.transform, d3.zoomIdentity
+                        .translate(translate[0], translate[1])
+                        .scale(scale));
+
+                // 高亮节点
+                node.style("opacity", d => d.id === nodeId ? 1 : 0.3);
+                link.style("opacity", 0.3);
+
+                setTimeout(() => {
+                    node.style("opacity", 1);
+                    link.style("opacity", 1);
+                }, 2000);
+            }
+        }
+
+        // 缩放控制
+        function zoomIn() {
+            svg.transition().call(zoom.scaleBy, 1.3);
+        }
+
+        function zoomOut() {
+            svg.transition().call(zoom.scaleBy, 0.7);
+        }
+
+        function resetZoom() {
+            svg.transition().call(zoom.transform, d3.zoomIdentity);
+        }
+
+        // 重置视图
+        function resetView() {
+            resetZoom();
+            graphData.nodes.forEach(n => {
+                n.fx = null;
+                n.fy = null;
+            });
+            simulation.alpha(1).restart();
+        }
+
+        // 加载图谱数据
+        function loadGraphData() {
+            // 这里可以从后端API加载实时数据
+            console.log("加载图谱数据...");
+            initGraph();
+        }
+
+        // 导出图谱
+        function exportGraph() {
+            const svgData = new XMLSerializer().serializeToString(svg.node());
+            const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "mcp_knowledge_graph.svg";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // 切换动画
+        function toggleAnimation() {
+            animationEnabled = !animationEnabled;
+            if (animationEnabled) {
+                simulation.restart();
+            } else {
+                simulation.stop();
+            }
+        }
+
+        // 初始化
+        window.addEventListener("load", () => {
+            initGraph();
+        });
+
+        // 响应窗口大小变化
+        window.addEventListener("resize", () => {
+            const newWidth = window.innerWidth - 350;
+            const newHeight = window.innerHeight;
+
+            svg.attr("width", newWidth).attr("height", newHeight);
+            simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
+            simulation.alpha(0.5).restart();
+        });
+    </script>
+</body>
+</html>

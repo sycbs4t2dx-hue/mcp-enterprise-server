@@ -79,6 +79,39 @@ class MemorySettings(BaseSettings):
     cache_ttl: int = Field(default=604800, ge=60)
 
 
+class HuggingFaceSettings(BaseSettings):
+    """Hugging Face配置"""
+
+    offline_mode: bool = False
+    download_timeout: int = Field(default=300, ge=10)
+    use_mirror: bool = False
+    mirror_url: str = "https://hf-mirror.com"
+
+
+class ModelConfigSettings(BaseSettings):
+    """单个模型配置"""
+
+    model_config = SettingsConfigDict(protected_namespaces=())
+
+    model_name: str
+    local_path: str
+    download_urls: Optional[List[str]] = None
+
+    # 可选参数
+    dimension: Optional[int] = None
+    max_seq_length: Optional[int] = None
+
+
+class ModelsSettings(BaseSettings):
+    """Hugging Face模型配置"""
+
+    local_model_dir: str = "./models"
+    prefer_local: bool = True
+    huggingface: HuggingFaceSettings = Field(default_factory=HuggingFaceSettings)
+    embedding: Optional[Dict[str, Any]] = None
+    code: Optional[Dict[str, Any]] = None
+
+
 class TokenOptimizationSettings(BaseSettings):
     """Token优化配置"""
 
@@ -120,7 +153,7 @@ class AntiHallucinationSettings(BaseSettings):
 class JWTSettings(BaseSettings):
     """JWT配置"""
 
-    secret_key: str = Field(default="change-this-in-production")
+    secret_key: str = Field(default="change-this-in-production-use-a-32-char-min-key")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = Field(default=1440, ge=1)  # 24小时
 
@@ -128,7 +161,7 @@ class JWTSettings(BaseSettings):
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
         """验证密钥强度"""
-        if v == "change-this-in-production":
+        if v == "change-this-in-production-use-a-32-char-min-key":
             import warnings
 
             warnings.warn("使用默认密钥不安全,请在生产环境修改!", UserWarning)
@@ -223,6 +256,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     vector_db: VectorDBSettings = Field(default_factory=VectorDBSettings)
     memory: MemorySettings = Field(default_factory=MemorySettings)
+    models: Optional[ModelsSettings] = Field(default_factory=ModelsSettings)
     token_optimization: TokenOptimizationSettings = Field(default_factory=TokenOptimizationSettings)
     anti_hallucination: AntiHallucinationSettings = Field(
         default_factory=AntiHallucinationSettings

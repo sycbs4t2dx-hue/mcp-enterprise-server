@@ -80,10 +80,75 @@ class JavaCodeAnalyzer:
         return ".".join(parts)
 
     def _process_import(self, imp):
-        """处理import语句"""
-        import_path = imp.path
-        # TODO: 创建import关系
-        pass
+        """
+        处理import语句，建立依赖关系
+
+        Args:
+            imp: javalang.tree.Import对象
+        """
+        import_path = imp.path  # 如 "java.util.List"
+        is_static = imp.static  # 是否静态导入
+        is_wildcard = imp.wildcard  # 是否通配符导入
+
+        # 1. 确定导入类型
+        if is_static:
+            import_type = "static_wildcard" if is_wildcard else "static_single"
+        else:
+            import_type = "wildcard" if is_wildcard else "single"
+
+        # 2. 提取被导入的类/包名
+        if is_wildcard:
+            # 通配符导入：记录包名
+            imported_entity = import_path  # 如 "java.util"
+            target_name = f"{import_path}.*"
+        else:
+            # 单类导入：记录完整类名
+            imported_entity = import_path  # 如 "java.util.List"
+            # 提取简单类名 (如 "List")
+            target_name = import_path.split(".")[-1]
+
+        # 3. 生成import关系ID
+        line_num = imp.position.line if hasattr(imp, 'position') and imp.position else 0
+        import_id = self._generate_id("import", imported_entity, line_num)
+
+        # 4. 创建CodeEntity记录import
+        import_entity = CodeEntity(
+            id=import_id,
+            type="import",
+            name=target_name,
+            qualified_name=imported_entity,
+            file_path=self.relative_path,
+            line_number=line_num,
+            end_line=line_num,
+            signature=f"import {'static ' if is_static else ''}{import_path}{'.*' if is_wildcard else ''}",
+            metadata={
+                "import_type": import_type,
+                "is_static": is_static,
+                "is_wildcard": is_wildcard,
+                "package": ".".join(import_path.split(".")[:-1]) if not is_wildcard else import_path,
+                "simple_name": target_name
+            }
+        )
+
+        self.entities.append(import_entity)
+
+        # 5. 建立import关系 (文件级别依赖)
+        self.relations.append(CodeRelation(
+            source_id=self.file_path,  # 当前文件依赖于imported_entity
+            target_id=imported_entity,
+            relation_type="imports",
+            metadata={
+                "import_type": import_type,
+                "simple_name": target_name,
+                "line": line_num
+            }
+        ))
+
+        # 6. 存储到import映射表 (用于后续类型解析)
+        if not hasattr(self, 'import_map'):
+            self.import_map = {}
+
+        self.import_map[target_name] = imported_entity
 
     def _process_type_declaration(self, node):
         """处理类型声明（类、接口、枚举）"""
@@ -140,7 +205,7 @@ class JavaCodeAnalyzer:
             name=node.name,
             qualified_name=qualified_name,
             file_path=self.relative_path,
-            line_number=getattr(node, 'position', {}).get('line', 0) if hasattr(node, 'position') else 0,
+            line_number=node.position.line if hasattr(node, 'position') and node.position else 0,
             end_line=0,
             docstring=docstring,
             metadata=metadata
@@ -206,7 +271,7 @@ class JavaCodeAnalyzer:
                 name=field_name,
                 qualified_name=qualified_name,
                 file_path=self.relative_path,
-                line_number=getattr(field, 'position', {}).get('line', 0) if hasattr(field, 'position') else 0,
+                line_number=field.position.line if hasattr(field, 'position') and field.position else 0,
                 end_line=0,
                 signature=f"{field_type} {field_name}",
                 parent_id=parent_id,
@@ -268,7 +333,7 @@ class JavaCodeAnalyzer:
             name=method_name,
             qualified_name=qualified_name,
             file_path=self.relative_path,
-            line_number=getattr(method, 'position', {}).get('line', 0) if hasattr(method, 'position') else 0,
+            line_number=method.position.line if hasattr(method, 'position') and method.position else 0,
             end_line=0,
             signature=signature,
             parent_id=parent_id,
@@ -312,6 +377,161 @@ class JavaCodeAnalyzer:
                     relation_type="calls",
                     metadata={"method": called_method}
                 ))
+
+    def build_dependency_graph(self) -> Dict[str, List[str]]:
+        """
+        构建类依赖关系图
+
+        Returns:
+            {
+                "com.example.UserService": [
+                    "com.example.UserRepository",
+                    "com.example.User",
+                    "java.util.List"
+                ],
+                ...
+            }
+        """
+        dependency_graph = {}
+
+        # 获取当前文件定义的所有类
+        defined_classes = [
+            entity.qualified_name
+            for entity in self.entities
+            if entity.type in ["class", "interface", "enum"]
+        ]
+
+        # 对每个类，收集其依赖
+        for class_name in defined_classes:
+            dependencies = set()
+
+            # 1. 从import关系提取
+            for relation in self.relations:
+                if relation.relation_type == "imports":
+                    imported_class = relation.target_id
+                    dependencies.add(imported_class)
+
+            # 2. 从继承/实现关系提取
+            for relation in self.relations:
+                if relation.relation_type in ["extends", "implements"]:
+                    parent_class = relation.target_id
+                    # 解析为完全限定名 (通过import_map)
+                    if hasattr(self, 'import_map') and parent_class in self.import_map:
+                        full_name = self.import_map[parent_class]
+                        dependencies.add(full_name)
+                    else:
+                        dependencies.add(parent_class)
+
+            # 3. 从字段类型提取
+            for entity in self.entities:
+                if entity.type == "variable" and entity.metadata.get("field_type"):
+                    field_type = entity.metadata["field_type"]
+                    simple_type = field_type.split("<")[0].split("[")[0]
+                    if hasattr(self, 'import_map') and simple_type in self.import_map:
+                        dependencies.add(self.import_map[simple_type])
+
+            dependency_graph[class_name] = list(dependencies)
+
+        return dependency_graph
+
+    @staticmethod
+    def detect_circular_dependencies(dependency_graph: Dict[str, List[str]]) -> List[List[str]]:
+        """
+        检测循环依赖
+
+        Args:
+            dependency_graph: 依赖关系图
+
+        Returns:
+            循环依赖链列表，如: [
+                ["A", "B", "C", "A"],  # A→B→C→A 形成循环
+                ...
+            ]
+        """
+        cycles = []
+
+        def dfs(node, path, visited):
+            if node in path:
+                # 发现循环
+                cycle_start = path.index(node)
+                cycle = path[cycle_start:] + [node]
+                cycles.append(cycle)
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for neighbor in dependency_graph.get(node, []):
+                dfs(neighbor, path[:], visited)
+
+            path.pop()
+
+        visited = set()
+        for node in dependency_graph.keys():
+            if node not in visited:
+                dfs(node, [], visited)
+
+        return cycles
+
+    @staticmethod
+    def analyze_impact(class_name: str, dependency_graph: Dict[str, List[str]]) -> Dict[str, Any]:
+        """
+        分析某个类修改的影响范围
+
+        Args:
+            class_name: 被修改的类名
+            dependency_graph: 依赖关系图
+
+        Returns:
+            {
+                "direct_impact": ["直接依赖此类的类"],
+                "indirect_impact": ["间接依赖此类的类"],
+                "impact_level": 3,  # 影响层级深度
+                "total_affected": 10  # 总受影响类数
+            }
+        """
+        # 构建反向依赖图 (谁依赖我)
+        reverse_graph = {}
+        for source, targets in dependency_graph.items():
+            for target in targets:
+                if target not in reverse_graph:
+                    reverse_graph[target] = []
+                reverse_graph[target].append(source)
+
+        # BFS查找所有受影响的类
+        direct_impact = reverse_graph.get(class_name, [])
+
+        all_impact = set(direct_impact)
+        queue = list(direct_impact)
+        level = 1
+        max_level = 1
+
+        while queue:
+            next_level = []
+            for node in queue:
+                for dependent in reverse_graph.get(node, []):
+                    if dependent not in all_impact:
+                        all_impact.add(dependent)
+                        next_level.append(dependent)
+
+            if next_level:
+                level += 1
+                max_level = level
+                queue = next_level
+            else:
+                break
+
+        indirect_impact = list(all_impact - set(direct_impact))
+
+        return {
+            "direct_impact": direct_impact,
+            "indirect_impact": indirect_impact,
+            "impact_level": max_level,
+            "total_affected": len(all_impact)
+        }
 
 
 # ==================== 测试代码 ====================

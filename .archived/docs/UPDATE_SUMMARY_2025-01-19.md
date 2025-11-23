@@ -79,7 +79,7 @@
 ### 服务器运行状态
 ```bash
 ✅ MCP Enterprise Server v2.0.0
-✅ 监听地址: http://192.168.1.34:8765
+✅ 监听地址: http://192.168.3.5:8765
 ✅ 工具数量: 37个
 ✅ 数据库: 18张表,外键完整
 ✅ Docker服务: MySQL + Redis + Milvus

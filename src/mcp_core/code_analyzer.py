@@ -13,6 +13,10 @@ from typing import Dict, List, Set, Any, Optional
 from dataclasses import dataclass, asdict
 from collections import defaultdict
 import hashlib
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,7 +78,7 @@ class PythonCodeAnalyzer(ast.NodeVisitor):
             self.visit(tree)
             return self.entities, self.relations
         except SyntaxError as e:
-            print(f"⚠️  语法错误 {self.file_path}: {e}")
+            logger.info(f"⚠️  语法错误 {self.file_path}: {e}")
             return [], []
 
     def _generate_id(self, type: str, name: str, line: int) -> str:
@@ -258,7 +262,7 @@ class PythonCodeAnalyzer(ast.NodeVisitor):
         else:
             try:
                 return ast.unparse(node)
-            except:
+            except Exception as e:
                 return None
 
     def _generate_signature(self, name: str, args: List[Dict], return_type: Optional[str]) -> str:
@@ -297,7 +301,7 @@ class ProjectAnalyzer:
 
     def analyze_project(self, extensions: List[str] = [".py"]) -> Dict[str, Any]:
         """分析整个项目"""
-        print(f"📊 开始分析项目: {self.project_root}")
+        logger.info(f"📊 开始分析项目: {self.project_root}")
 
         # 扫描所有Python文件
         python_files = []
@@ -312,11 +316,11 @@ class ProjectAnalyzer:
 
         self.stats["total_files"] = len(python_files)
 
-        print(f"📂 找到 {len(python_files)} 个Python文件")
+        logger.info(f"📂 找到 {len(python_files)} 个Python文件")
 
         # 逐个分析文件
         for i, file_path in enumerate(python_files, 1):
-            print(f"[{i}/{len(python_files)}] 分析: {file_path.relative_to(self.project_root)}")
+            logger.info(f"[{i}/{len(python_files)}] 分析: {file_path.relative_to(self.project_root)}")
             self._analyze_file(str(file_path))
 
         # 后处理：解析关系中的名字引用
@@ -327,13 +331,13 @@ class ProjectAnalyzer:
         self.stats["total_functions"] = sum(1 for e in self.all_entities if e.type in ["function", "method"])
         self.stats["total_relations"] = len(self.all_relations)
 
-        print("\n" + "="*60)
-        print("✅ 分析完成！")
-        print(f"   文件数: {self.stats['total_files']}")
-        print(f"   类数量: {self.stats['total_classes']}")
-        print(f"   函数数: {self.stats['total_functions']}")
-        print(f"   关系数: {self.stats['total_relations']}")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("✅ 分析完成！")
+        logger.info(f"   文件数: {self.stats['total_files']}")
+        logger.info(f"   类数量: {self.stats['total_classes']}")
+        logger.info(f"   函数数: {self.stats['total_functions']}")
+        logger.info(f"   关系数: {self.stats['total_relations']}")
+        logger.info("="*60)
 
         return {
             "entities": [asdict(e) for e in self.all_entities],
@@ -355,7 +359,7 @@ class ProjectAnalyzer:
             self.all_relations.extend(relations)
 
         except Exception as e:
-            print(f"  ⚠️  错误: {e}")
+            logger.info(f"  ⚠️  错误: {e}")
 
     def _resolve_references(self):
         """解析关系中的名字引用为实际ID"""
@@ -381,7 +385,7 @@ class ProjectAnalyzer:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-        print(f"💾 导出到: {output_path}")
+        logger.info(f"💾 导出到: {output_path}")
 
     def generate_graph_summary(self) -> str:
         """生成图谱摘要"""
@@ -412,8 +416,8 @@ def main():
     import sys
 
     if len(sys.argv) < 2:
-        print("用法: python code_analyzer.py <project_path>")
-        print("示例: python code_analyzer.py /Users/mac/Downloads/MCP")
+        logger.info("用法: python code_analyzer.py <project_path>")
+        logger.info("示例: python code_analyzer.py /Users/mac/Downloads/MCP")
         sys.exit(1)
 
     project_path = sys.argv[1]
@@ -430,12 +434,12 @@ def main():
 
     # 生成摘要
     summary = analyzer.generate_graph_summary()
-    print("\n" + summary)
+    logger.info("\n" + summary)
 
     summary_path = Path(project_path) / "code_analysis_summary.md"
     with open(summary_path, 'w', encoding='utf-8') as f:
         f.write(summary)
-    print(f"📄 摘要保存到: {summary_path}")
+    logger.info(f"📄 摘要保存到: {summary_path}")
 
 
 if __name__ == "__main__":

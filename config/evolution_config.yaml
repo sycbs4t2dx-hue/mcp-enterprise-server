@@ -1,0 +1,219 @@
+# ============================================
+# 智能进化编码系统配置文件
+# ============================================
+
+# 系统基础配置
+system:
+  name: "Intelligent Evolution Coding System"
+  version: "3.0.0"
+  environment: ${ENVIRONMENT:development}
+  debug: ${DEBUG:false}
+  timezone: "Asia/Shanghai"
+
+# 数据库配置
+database:
+  # MySQL主数据库
+  mysql:
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:3306}
+    database: ${DB_NAME:mcp_evolution}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:Wxwy.2025@#}
+    pool_size: ${DB_POOL_SIZE:20}
+    max_overflow: ${DB_MAX_OVERFLOW:10}
+    pool_timeout: ${DB_POOL_TIMEOUT:30}
+    pool_recycle: ${DB_POOL_RECYCLE:3600}
+    echo: ${DB_ECHO:false}
+
+  # Redis缓存
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    db: ${REDIS_DB:0}
+    max_connections: ${REDIS_MAX_CONNECTIONS:50}
+    decode_responses: true
+
+  # 向量数据库
+  vector_db:
+    type: ${VECTOR_DB_TYPE:chromadb}
+    persist_directory: ${VECTOR_DB_PATH:./data/chromadb}
+    collection_name: ${VECTOR_DB_COLLECTION:evolution_embeddings}
+
+# API服务配置
+api:
+  # 主API服务器
+  main:
+    host: ${API_HOST:0.0.0.0}
+    port: ${API_PORT:8765}
+    workers: ${API_WORKERS:4}
+    reload: ${API_RELOAD:false}
+    cors_origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+      - "*"
+
+  # WebSocket服务器
+  websocket:
+    host: ${WS_HOST:0.0.0.0}
+    port: ${WS_PORT:8766}
+    ping_interval: ${WS_PING_INTERVAL:30}
+    ping_timeout: ${WS_PING_TIMEOUT:10}
+    max_connections: ${WS_MAX_CONNECTIONS:1000}
+
+  # 企业API服务器
+  enterprise:
+    enabled: ${ENTERPRISE_ENABLED:true}
+    host: ${ENTERPRISE_HOST:0.0.0.0}
+    port: ${ENTERPRISE_PORT:8767}
+    auth_enabled: ${ENTERPRISE_AUTH:true}
+    rate_limit: ${ENTERPRISE_RATE_LIMIT:100}
+
+# 学习系统配置
+learning:
+  # 模式识别
+  pattern_recognition:
+    enabled: true
+    deep_analysis: ${PATTERN_DEEP_ANALYSIS:true}
+    min_confidence: ${PATTERN_MIN_CONFIDENCE:0.6}
+    max_patterns_per_session: ${MAX_PATTERNS:50}
+
+  # 经验管理
+  experience_management:
+    enabled: true
+    min_effectiveness: ${EXP_MIN_EFFECTIVENESS:0.5}
+    evolution_threshold: ${EXP_EVOLUTION_THRESHOLD:0.8}
+    cache_ttl: ${EXP_CACHE_TTL:3600}
+    fusion_threshold: ${EXP_FUSION_THRESHOLD:0.85}
+
+  # 知识图谱
+  knowledge_graph:
+    enabled: true
+    max_depth: ${GRAPH_MAX_DEPTH:10}
+    min_importance: ${GRAPH_MIN_IMPORTANCE:0.1}
+    clustering_enabled: ${GRAPH_CLUSTERING:true}
+    layout_algorithm: ${GRAPH_LAYOUT:force}
+
+# 协作系统配置
+collaboration:
+  # 锁管理
+  lock_management:
+    enabled: true
+    default_timeout: ${LOCK_TIMEOUT:300}
+    max_wait_time: ${LOCK_MAX_WAIT:60}
+    deadlock_detection: ${LOCK_DEADLOCK_DETECTION:true}
+
+  # 任务调度
+  task_scheduling:
+    enabled: true
+    max_parallel_tasks: ${MAX_PARALLEL_TASKS:10}
+    task_timeout: ${TASK_TIMEOUT:3600}
+    retry_attempts: ${TASK_RETRY:3}
+
+  # 冲突解决
+  conflict_resolution:
+    enabled: true
+    auto_resolve: ${CONFLICT_AUTO_RESOLVE:false}
+    merge_strategy: ${CONFLICT_MERGE_STRATEGY:manual}
+
+# 嵌入模型配置
+embedding:
+  model_name: ${EMBEDDING_MODEL:sentence-transformers/all-MiniLM-L6-v2}
+  model_path: ${EMBEDDING_MODEL_PATH:./models}
+  batch_size: ${EMBEDDING_BATCH_SIZE:32}
+  max_length: ${EMBEDDING_MAX_LENGTH:512}
+  device: ${EMBEDDING_DEVICE:cpu}
+  cache_enabled: true
+
+# 监控配置
+monitoring:
+  # Prometheus指标
+  prometheus:
+    enabled: ${PROMETHEUS_ENABLED:true}
+    port: ${PROMETHEUS_PORT:9090}
+    namespace: "evolution_system"
+
+  # 日志配置
+  logging:
+    level: ${LOG_LEVEL:INFO}
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: ${LOG_FILE:./logs/evolution_system.log}
+    max_size: ${LOG_MAX_SIZE:100MB}
+    max_files: ${LOG_MAX_FILES:10}
+
+  # 健康检查
+  health_check:
+    enabled: true
+    interval: ${HEALTH_CHECK_INTERVAL:60}
+    timeout: ${HEALTH_CHECK_TIMEOUT:10}
+
+# 安全配置
+security:
+  # JWT认证
+  jwt:
+    enabled: ${JWT_ENABLED:true}
+    secret_key: ${JWT_SECRET:your-secret-key-here}
+    algorithm: ${JWT_ALGORITHM:HS256}
+    expiry: ${JWT_EXPIRY:3600}
+
+  # API密钥
+  api_key:
+    enabled: ${API_KEY_ENABLED:true}
+    header_name: ${API_KEY_HEADER:X-API-Key}
+
+  # 加密
+  encryption:
+    enabled: ${ENCRYPTION_ENABLED:true}
+    algorithm: ${ENCRYPTION_ALGORITHM:AES256}
+
+# 性能优化配置
+optimization:
+  # 缓存策略
+  caching:
+    enabled: true
+    levels:
+      - type: memory
+        size: ${CACHE_MEMORY_SIZE:1000}
+        ttl: ${CACHE_MEMORY_TTL:300}
+      - type: redis
+        ttl: ${CACHE_REDIS_TTL:3600}
+      - type: database
+        ttl: ${CACHE_DB_TTL:86400}
+
+  # 批处理
+  batch_processing:
+    enabled: true
+    batch_size: ${BATCH_SIZE:100}
+    flush_interval: ${BATCH_FLUSH_INTERVAL:5}
+
+  # 连接池
+  connection_pooling:
+    enabled: true
+    min_size: ${POOL_MIN_SIZE:5}
+    max_size: ${POOL_MAX_SIZE:20}
+
+# 功能开关
+features:
+  pattern_recognition: ${FEATURE_PATTERN_RECOGNITION:true}
+  experience_evolution: ${FEATURE_EXPERIENCE_EVOLUTION:true}
+  knowledge_graph: ${FEATURE_KNOWLEDGE_GRAPH:true}
+  multi_ai_collaboration: ${FEATURE_COLLABORATION:true}
+  real_time_updates: ${FEATURE_REALTIME:true}
+  auto_learning: ${FEATURE_AUTO_LEARNING:true}
+  preset_patterns: ${FEATURE_PRESET_PATTERNS:true}
+
+# 开发配置
+development:
+  mock_data: ${DEV_MOCK_DATA:false}
+  hot_reload: ${DEV_HOT_RELOAD:true}
+  debug_mode: ${DEV_DEBUG:true}
+  test_mode: ${DEV_TEST_MODE:false}
+
+# 生产配置
+production:
+  ssl_enabled: ${PROD_SSL:true}
+  ssl_cert: ${PROD_SSL_CERT:/path/to/cert.pem}
+  ssl_key: ${PROD_SSL_KEY:/path/to/key.pem}
+  backup_enabled: ${PROD_BACKUP:true}
+  backup_interval: ${PROD_BACKUP_INTERVAL:daily}
+  monitoring_enabled: ${PROD_MONITORING:true}

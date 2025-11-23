@@ -1,9 +1,12 @@
 """
 嵌入向量生成服务
 使用sentence-transformers生成文本嵌入
+支持从本地路径加载模型，避免重复下载
 """
 
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
@@ -27,31 +30,147 @@ class EmbeddingService:
             model_name: 模型名称,为None时使用配置文件
         """
         settings = get_settings()
-        self.model_name = model_name or settings.token_optimization.text_model
+
+        # 优先使用本地模型路径
+        self.model_path = self._resolve_model_path(model_name)
 
         # 检测设备
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         logger.info(
             f"加载嵌入模型",
-            extra={"model": self.model_name, "device": self.device},
+            extra={"model": self.model_path, "device": self.device},
         )
 
         try:
-            # 加载模型
-            self.model = SentenceTransformer(self.model_name, device=self.device)
+            # 设置环境变量
+            self._setup_environment(settings)
+
+            # 加载模型 (支持本地路径或HF仓库名称)
+            self.model = SentenceTransformer(self.model_path, device=self.device)
 
             # 获取嵌入维度
             self.dimension = self.model.get_sentence_embedding_dimension()
 
             logger.info(
                 f"嵌入模型加载成功",
-                extra={"model": self.model_name, "dimension": self.dimension},
+                extra={"model": self.model_path, "dimension": self.dimension},
             )
 
         except Exception as e:
             logger.error(f"嵌入模型加载失败: {e}")
             raise
+
+    def _resolve_model_path(self, model_name: Optional[str] = None) -> str:
+        """
+        解析模型路径 (优先使用本地路径)
+
+        Args:
+            model_name: 模型名称
+
+        Returns:
+            模型路径 (本地路径或HF仓库名称)
+        """
+        settings = get_settings()
+
+        # 获取模型配置
+        local_path_str = None
+        model_repo = None
+
+        if hasattr(settings, 'models') and settings.models:
+            models_config = settings.models
+            embedding_config = getattr(models_config, 'embedding', None)
+
+            if embedding_config:
+                # embedding_config 可能是dict类型
+                if isinstance(embedding_config, dict):
+                    local_path_str = embedding_config.get('local_path')
+                    model_repo = embedding_config.get('model_name')
+                else:
+                    local_path_str = embedding_config.local_path
+                    model_repo = embedding_config.model_name
+
+                # 1. 优先使用本地路径 (如果存在且有效)
+                if models_config.prefer_local and local_path_str:
+                    local_path = Path(local_path_str)
+
+                    # 检查路径是否存在且包含必要文件
+                    if local_path.exists() and self._validate_model_directory(local_path):
+                        logger.info(
+                            f"✅ 使用本地模型",
+                            extra={"path": str(local_path)}
+                        )
+                        return str(local_path)
+                    else:
+                        logger.warning(
+                            f"⚠️ 本地模型路径无效或不完整: {local_path}",
+                            extra={"reason": "目录不存在或缺少必要文件"}
+                        )
+
+            # 2. 使用HF仓库名称 (会自动下载)
+            repo_name = model_name or model_repo
+            logger.info(
+                f"📥 将从Hugging Face加载模型",
+                extra={"repo": repo_name}
+            )
+            return repo_name
+        else:
+            # 兼容旧配置
+            return model_name or settings.token_optimization.text_model
+
+    def _validate_model_directory(self, model_dir: Path) -> bool:
+        """
+        验证模型目录是否包含必要文件
+
+        Args:
+            model_dir: 模型目录
+
+        Returns:
+            是否有效
+        """
+        # 必须存在的文件 (至少包含其中之一)
+        required_files = [
+            "config.json",
+            "pytorch_model.bin",
+            "model.safetensors",
+        ]
+
+        for file_name in required_files:
+            if (model_dir / file_name).exists():
+                return True
+
+        return False
+
+    def _setup_environment(self, settings):
+        """
+        设置Hugging Face环境变量
+
+        Args:
+            settings: 配置对象
+        """
+        if hasattr(settings, 'models') and settings.models:
+            models_config = settings.models
+            hf_config = models_config.huggingface
+
+            # 离线模式
+            if hf_config.offline_mode:
+                os.environ["TRANSFORMERS_OFFLINE"] = "1"
+                os.environ["HF_HUB_OFFLINE"] = "1"
+                logger.info("🔌 Hugging Face离线模式已启用")
+
+            # 使用镜像站
+            if hf_config.use_mirror and hf_config.mirror_url:
+                os.environ["HF_ENDPOINT"] = hf_config.mirror_url
+                logger.info(
+                    f"🌍 使用Hugging Face镜像",
+                    extra={"mirror": hf_config.mirror_url}
+                )
+
+            # 设置缓存目录 (统一存储位置)
+            cache_dir = Path(models_config.local_model_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            os.environ["TRANSFORMERS_CACHE"] = str(cache_dir)
+            os.environ["HF_HOME"] = str(cache_dir)
 
     def encode_single(
         self,

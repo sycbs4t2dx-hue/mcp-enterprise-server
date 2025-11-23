@@ -26,8 +26,21 @@ echo "   - MySQL (关系数据库)"
 echo "   - Redis (缓存)"
 echo ""
 
-# 启动所有服务
-docker-compose up -d
+# 启动所有服务 (优先使用新版本docker compose)
+# 直接使用 docker compose (Docker Desktop内置命令)
+if docker compose version &> /dev/null 2>&1; then
+    echo "使用 docker compose (新版本)"
+    docker compose up -d
+elif command -v docker-compose &> /dev/null; then
+    echo "使用 docker-compose (旧版本)"
+    docker-compose up -d 2>&1 || {
+        echo "❌ docker-compose失败,尝试使用 docker compose"
+        docker compose up -d
+    }
+else
+    echo "❌ 未找到docker compose或docker-compose命令"
+    exit 1
+fi
 
 echo ""
 echo "⏳ 等待服务就绪..."
@@ -84,5 +97,5 @@ echo "  2. python setup.py --install"
 echo "  3. python mcp_server_unified.py"
 echo ""
 echo "停止服务:"
-echo "  docker-compose down"
+echo "  docker compose down  (或 docker-compose down)"
 echo ""

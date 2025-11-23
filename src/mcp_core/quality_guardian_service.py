@@ -486,7 +486,6 @@ class QualityGuardianService:
         )
 
         # 预估修复时间
-        # critical=8h, high=4h, medium=2h, low=1h
         estimated_hours = critical_count * 8 + high_count * 4 + medium_count * 2 + low_count * 1
         estimated_days = estimated_hours / 8
 
@@ -607,6 +606,9 @@ def test_quality_guardian():
     """测试质量守护"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     DB_URL = "mysql+pymysql://root:Wxwy.2025%40%23@localhost:3306/mcp_db?charset=utf8mb4"
     engine = create_engine(DB_URL)
@@ -618,31 +620,31 @@ def test_quality_guardian():
     code_service = CodeKnowledgeGraphService(db)
     quality_service = QualityGuardianService(db, code_service)
 
-    print("=" * 60)
-    print("质量守护者测试")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("质量守护者测试")
+    logger.info("=" * 60)
 
     # 测试项目
     project_id = "test_project_001"
 
     # 检测代码异味
-    print("\n检测代码异味...")
+    logger.info("\n检测代码异味...")
     issues = quality_service.detect_code_smells(project_id)
-    print(f"✅ 检测到 {len(issues)} 个问题")
+    logger.info(f"✅ 检测到 {len(issues)} 个问题")
 
     # 评估技术债务
-    print("\n评估技术债务...")
+    logger.info("\n评估技术债务...")
     snapshot = quality_service.assess_technical_debt(project_id)
-    print(f"✅ 总体评分: {snapshot.overall_score}/10")
-    print(f"   问题数量: {snapshot.issues_count}")
-    print(f"   预估修复: {snapshot.estimated_days_to_fix}天")
+    logger.info(f"✅ 总体评分: {snapshot.overall_score}/10")
+    logger.info(f"   问题数量: {snapshot.issues_count}")
+    logger.info(f"   预估修复: {snapshot.estimated_days_to_fix}天")
 
     # 识别热点
-    print("\n识别债务热点...")
+    logger.info("\n识别债务热点...")
     hotspots = quality_service.identify_debt_hotspots(project_id, top_k=5)
-    print(f"✅ 发现 {len(hotspots)} 个热点")
+    logger.info(f"✅ 发现 {len(hotspots)} 个热点")
     for i, hotspot in enumerate(hotspots, 1):
-        print(f"{i}. {hotspot['file']} (分数: {hotspot['debt_score']})")
+        logger.info(f"{i}. {hotspot['file']} (分数: {hotspot['debt_score']})")
 
     db.close()
 

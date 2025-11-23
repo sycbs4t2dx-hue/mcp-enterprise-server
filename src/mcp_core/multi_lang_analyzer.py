@@ -47,31 +47,31 @@ class MultiLanguageAnalyzer:
 
     def analyze_project(self) -> Dict[str, Any]:
         """分析整个多语言项目"""
-        print(f"📊 开始分析多语言项目: {self.project_root}")
+        logger.info(f"📊 开始分析多语言项目: {self.project_root}")
 
         # 扫描所有支持的文件
         files_by_language = self._scan_files()
 
-        print(f"\n📂 扫描结果:")
+        logger.info(f"\n📂 扫描结果:")
         for lang, files in files_by_language.items():
-            print(f"   {lang}: {len(files)}个文件")
+            logger.info(f"   {lang}: {len(files)}个文件")
 
         # 逐语言分析
         for language, files in files_by_language.items():
             if files:
-                print(f"\n分析{language}代码...")
+                logger.info(f"\n分析{language}代码...")
                 self._analyze_language(language, files)
 
         # 更新统计
         self.stats["total_files"] = sum(len(files) for files in files_by_language.values())
 
-        print("\n" + "=" * 60)
-        print("✅ 多语言分析完成！")
-        print(f"   总文件数: {self.stats['total_files']}")
+        logger.info("\n" + "=" * 60)
+        logger.info("✅ 多语言分析完成！")
+        logger.info(f"   总文件数: {self.stats['total_files']}")
         for lang in files_by_language.keys():
             print(f"   {lang}: {self.stats['entities_by_language'][lang]}个实体, "
                   f"{self.stats['relations_by_language'][lang]}个关系")
-        print("=" * 60)
+        logger.info("=" * 60)
 
         return {
             "entities": [self._entity_to_dict(e) for e in self.all_entities],
@@ -115,10 +115,9 @@ class MultiLanguageAnalyzer:
         elif language == "swift":
             self._analyze_swift_files(files)
         elif language == "javascript" or language == "typescript":
-            # TODO: 实现JS/TS分析
-            print(f"   ⚠️  {language}支持开发中...")
+            self._analyze_javascript_typescript_files(files)
         else:
-            print(f"   ⚠️  不支持的语言: {language}")
+            logger.info(f"   ⚠️  不支持的语言: {language}")
 
     def _analyze_python_files(self, files: List[Path]):
         """分析Python文件"""
@@ -126,7 +125,7 @@ class MultiLanguageAnalyzer:
 
         for i, file_path in enumerate(files, 1):
             if i % 10 == 0:
-                print(f"   [{i}/{len(files)}] {file_path.name}")
+                logger.info(f"   [{i}/{len(files)}] {file_path.name}")
 
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -142,20 +141,20 @@ class MultiLanguageAnalyzer:
                 self.stats["relations_by_language"]["python"] += len(relations)
 
             except Exception as e:
-                print(f"   ⚠️  分析失败 {file_path}: {e}")
+                logger.info(f"   ⚠️  分析失败 {file_path}: {e}")
 
     def _analyze_java_files(self, files: List[Path]):
         """分析Java文件"""
         try:
             from .java_analyzer import JavaCodeAnalyzer
         except ImportError:
-            print("   ⚠️  javalang未安装，跳过Java分析")
-            print("   安装: pip install javalang")
+            logger.info("   ⚠️  javalang未安装，跳过Java分析")
+            logger.info("   安装: pip install javalang")
             return
 
         for i, file_path in enumerate(files, 1):
             if i % 10 == 0:
-                print(f"   [{i}/{len(files)}] {file_path.name}")
+                logger.info(f"   [{i}/{len(files)}] {file_path.name}")
 
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -171,7 +170,7 @@ class MultiLanguageAnalyzer:
                 self.stats["relations_by_language"]["java"] += len(relations)
 
             except Exception as e:
-                print(f"   ⚠️  分析失败 {file_path}: {e}")
+                logger.info(f"   ⚠️  分析失败 {file_path}: {e}")
 
     def _analyze_vue_files(self, files: List[Path]):
         """分析Vue文件"""
@@ -179,7 +178,7 @@ class MultiLanguageAnalyzer:
 
         for i, file_path in enumerate(files, 1):
             if i % 10 == 0:
-                print(f"   [{i}/{len(files)}] {file_path.name}")
+                logger.info(f"   [{i}/{len(files)}] {file_path.name}")
 
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -195,7 +194,7 @@ class MultiLanguageAnalyzer:
                 self.stats["relations_by_language"]["vue"] += len(relations)
 
             except Exception as e:
-                print(f"   ⚠️  分析失败 {file_path}: {e}")
+                logger.info(f"   ⚠️  分析失败 {file_path}: {e}")
 
     def _analyze_swift_files(self, files: List[Path]):
         """分析Swift文件"""
@@ -203,7 +202,7 @@ class MultiLanguageAnalyzer:
 
         for i, file_path in enumerate(files, 1):
             if i % 10 == 0:
-                print(f"   [{i}/{len(files)}] {file_path.name}")
+                logger.info(f"   [{i}/{len(files)}] {file_path.name}")
 
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -219,7 +218,33 @@ class MultiLanguageAnalyzer:
                 self.stats["relations_by_language"]["swift"] += len(relations)
 
             except Exception as e:
-                print(f"   ⚠️  分析失败 {file_path}: {e}")
+                logger.info(f"   ⚠️  分析失败 {file_path}: {e}")
+
+    def _analyze_javascript_typescript_files(self, files: List[Path]):
+        """分析JavaScript/TypeScript文件"""
+        from .js_ts_analyzer import JavaScriptTypeScriptAnalyzer
+
+        for i, file_path in enumerate(files, 1):
+            if i % 10 == 0:
+                logger.info(f"   [{i}/{len(files)}] {file_path.name}")
+
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    source_code = f.read()
+
+                analyzer = JavaScriptTypeScriptAnalyzer(str(file_path), str(self.project_root))
+                entities, relations = analyzer.analyze(source_code)
+
+                self.all_entities.extend(entities)
+                self.all_relations.extend(relations)
+
+                # 根据文件扩展名确定语言
+                language = "typescript" if file_path.suffix in ['.ts', '.tsx'] else "javascript"
+                self.stats["entities_by_language"][language] += len(entities)
+                self.stats["relations_by_language"][language] += len(relations)
+
+            except Exception as e:
+                logger.info(f"   ⚠️  分析失败 {file_path}: {e}")
 
     def _entity_to_dict(self, entity: CodeEntity) -> Dict:
         """实体转为字典"""
@@ -259,7 +284,7 @@ class MultiLanguageAnalyzer:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-        print(f"💾 导出到: {output_path}")
+        logger.info(f"💾 导出到: {output_path}")
 
 
 # ==================== 命令行工具 ====================
@@ -267,10 +292,13 @@ class MultiLanguageAnalyzer:
 def main():
     """命令行入口"""
     import sys
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     if len(sys.argv) < 2:
-        print("用法: python multi_lang_analyzer.py <project_path>")
-        print("示例: python multi_lang_analyzer.py /path/to/project")
+        logger.info("用法: python multi_lang_analyzer.py <project_path>")
+        logger.info("示例: python multi_lang_analyzer.py /path/to/project")
         sys.exit(1)
 
     project_path = sys.argv[1]
@@ -286,22 +314,22 @@ def main():
     analyzer.export_json(str(output_path))
 
     # 生成摘要
-    print("\n" + "=" * 60)
-    print("📈 分析摘要")
-    print("=" * 60)
-    print(f"项目: {project_path}")
-    print(f"总文件: {result['stats']['total_files']}")
-    print(f"总实体: {len(result['entities'])}")
-    print(f"总关系: {len(result['relations'])}")
-    print()
-    print("各语言统计:")
+    logger.info("\n" + "=" * 60)
+    logger.info("📈 分析摘要")
+    logger.info("=" * 60)
+    logger.info(f"项目: {project_path}")
+    logger.info(f"总文件: {result['stats']['total_files']}")
+    logger.info(f"总实体: {len(result['entities'])}")
+    logger.info(f"总关系: {len(result['relations'])}")
+    logger.info()
+    logger.info("各语言统计:")
     for lang, count in result['stats']['languages'].items():
         entities = result['stats']['entities_by_language'][lang]
         relations = result['stats']['relations_by_language'][lang]
-        print(f"  {lang}:")
-        print(f"    文件: {count}")
-        print(f"    实体: {entities}")
-        print(f"    关系: {relations}")
+        logger.info(f"  {lang}:")
+        logger.info(f"    文件: {count}")
+        logger.info(f"    实体: {entities}")
+        logger.info(f"    关系: {relations}")
 
 
 if __name__ == "__main__":

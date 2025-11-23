@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Milvus向量数据库
   milvus-standalone:

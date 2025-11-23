@@ -167,7 +167,40 @@ class CodeKnowledgeGraphService:
         self.db.add(project)
         self.db.commit()
         self.db.refresh(project)
+
+        # 同步到 projects 表（用于外键约束）
+        self._sync_to_projects_table(project_id, name, kwargs.get('description', ''))
+
         return project
+
+    def _sync_to_projects_table(self, project_id: str, name: str, description: str = '') -> None:
+        """同步代码项目到通用 projects 表
+
+        这确保了 long_memories 等表的外键约束能够正常工作
+        """
+        from sqlalchemy import text
+
+        try:
+            # 使用 INSERT ... ON DUPLICATE KEY UPDATE 确保幂等性
+            sync_sql = text("""
+                INSERT INTO projects (project_id, name, description, owner_id, is_active, meta_data)
+                VALUES (:project_id, :name, :description, 'system', 1, JSON_OBJECT('sync_from', 'code_projects'))
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    description = VALUES(description),
+                    updated_at = CURRENT_TIMESTAMP
+            """)
+
+            self.db.execute(sync_sql, {
+                'project_id': project_id,
+                'name': name,
+                'description': description or f'代码项目: {name}'
+            })
+            self.db.commit()
+        except Exception as e:
+            # 同步失败不应该阻塞主流程，只记录警告
+            print(f"⚠️  同步到 projects 表失败: {e}")
+            self.db.rollback()
 
     def store_analysis_result(self,
                               project_id: str,

@@ -91,9 +91,9 @@ echo "=" 60
 echo "  ✅ MCP Enterprise Server 重启完成!"
 echo "=" 60
 echo ""
-echo "📡 服务地址: http://192.168.1.34:8765"
-echo "📊 健康检查: http://192.168.1.34:8765/health"
-echo "📈 统计信息: http://192.168.1.34:8765/stats"
+echo "📡 服务地址: http://192.168.3.5:8765"
+echo "📊 健康检查: http://192.168.3.5:8765/health"
+echo "📈 统计信息: http://192.168.3.5:8765/stats"
 echo "📋 查看日志: tail -f enterprise_server.log"
 echo ""
 echo "🔧 修复内容:"

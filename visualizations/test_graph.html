@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>项目图谱测试</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        #stats { background: #f0f0f0; padding: 15px; border-radius: 5px; }
+        .stat { margin: 5px 0; }
+        svg { border: 1px solid #ccc; }
+        .node { fill: #69b3a2; stroke: #000; stroke-width: 1.5px; cursor: pointer; }
+        .link { stroke: #999; stroke-opacity: 0.6; }
+        .label { font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>项目知识图谱 - 测试</h1>
+    <div id="stats">
+        <div class="stat">文件数: 1</div>
+        <div class="stat">依赖关系: 0</div>
+        <div class="stat">项目路径: /Users/mac/Downloads/MCP/src/mcp_tools</div>
+    </div>
+    <svg id="graph" width="800" height="600"></svg>
+    <script>
+        const data = {"nodes": [{"id": "9f2862347f6e", "name": "graph_generator_tool", "type": "file", "path": "graph_generator_tool.py", "description": "Python\u6a21\u5757\uff0c\u5305\u542b4\u4e2a\u7c7b\uff0c1\u4e2a\u51fd\u6570", "size": 21227, "complexity": 54, "x": 0, "y": 0, "metadata": {"language": "python", "imports": ["os", "json", "asyncio", "typing", "pathlib", "typing", "dataclasses", "src.mcp_core.services.project_graph_generator", "src.mcp_core.common.logger"], "classes": [{"name": "ToolResponse", "methods": [], "docstring": null}, {"name": "Tool", "methods": [], "docstring": null}, {"name": "GraphGeneratorTool", "methods": ["_generate_statistics", "_generate_html_visualization"], "docstring": "\u751f\u6210\u9879\u76ee\u77e5\u8bc6\u56fe\u8c31\u7684MCP\u5de5\u5177\n\n\u4f7f\u7528\u65b9\u6cd5\uff1a\n1. \u5206\u6790\u5f53\u524d\u9879\u76ee\uff1agenerate_project_graph()\n2. \u5206\u6790\u6307\u5b9a\u9879\u76ee\uff1agenerate_project_graph(path=\"/path/to/project\")\n3. \u81ea\u5b9a\u4e49\u9009\u9879\uff1agenerate_project_graph(path=\"/path\", format=\"html\")"}, {"name": "ViewGraphTool", "methods": [], "docstring": "\u67e5\u770b\u5df2\u751f\u6210\u7684\u9879\u76ee\u56fe\u8c31"}], "functions": [{"name": "register_tools", "args": [], "docstring": "\u6ce8\u518c\u56fe\u8c31\u751f\u6210\u5de5\u5177"}], "lines": 642}}], "edges": [], "metadata": {"project_name": "mcp_tools", "project_path": "/Users/mac/Downloads/MCP/src/mcp_tools", "total_files": 1, "total_dependencies": 0, "analysis_time": "2025-11-20T23:44:50.627535", "language_stats": {"python": 1}}};
+
+        const svg = d3.select("#graph");
+        const width = 800;
+        const height = 600;
+
+        const simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.edges).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(data.edges)
+            .enter().append("line")
+            .attr("class", "link");
+
+        const node = svg.append("g")
+            .selectAll("circle")
+            .data(data.nodes)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", 10)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        const label = svg.append("g")
+            .selectAll("text")
+            .data(data.nodes)
+            .enter().append("text")
+            .attr("class", "label")
+            .text(d => d.name);
+
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            label
+                .attr("x", d => d.x)
+                .attr("y", d => d.y - 15);
+        });
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+    </script>
+</body>
+</html>

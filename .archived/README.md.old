@@ -41,7 +41,7 @@
 {
   "mcpServers": {
     "mcp-remote": {
-      "url": "http://192.168.1.34:8765"
+      "url": "http://192.168.3.5:8765"
     }
   }
 }
@@ -61,7 +61,7 @@ vim .env  # 设置API_KEYS和ALLOWED_IPS
 {
   "mcpServers": {
     "mcp-remote": {
-      "url": "http://192.168.1.34:8765",
+      "url": "http://192.168.3.5:8765",
       "headers": {"Authorization": "Bearer sk-your-key"}
     }
   }

@@ -50,7 +50,7 @@ class SwiftCodeAnalyzer:
             return self.entities, self.relations
 
         except Exception as e:
-            print(f"⚠️  Swift分析失败 {self.file_path}: {e}")
+            logger.info(f"⚠️  Swift分析失败 {self.file_path}: {e}")
             return [], []
 
     def _generate_id(self, type_str: str, name: str, line: int = 0) -> str:
@@ -72,8 +72,6 @@ class SwiftCodeAnalyzer:
     def _extract_imports(self, lines: List[str]):
         """提取import语句"""
         for i, line in enumerate(lines, 1):
-            # import Foundation
-            # import UIKit
             match = re.match(r'^\s*import\s+(\w+)', line.strip())
             if match:
                 module_name = match.group(1)
@@ -219,7 +217,6 @@ class SwiftCodeAnalyzer:
     def _extract_methods(self, body: str, lines: List[str], start_line: int, parent_id: str):
         """提取方法"""
         # func methodName(param: Type) -> ReturnType { }
-        # init(param: Type) { }
         # deinit { }
 
         patterns = [
@@ -427,6 +424,10 @@ def test_swift_analyzer():
     swift_code = '''
 import Foundation
 import UIKit
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 /// 用户模型
 public class User: Codable {
@@ -482,21 +483,21 @@ extension User {
     analyzer = SwiftCodeAnalyzer("Models/User.swift", "src")
     entities, relations = analyzer.analyze(swift_code)
 
-    print("=" * 60)
-    print("Swift代码分析测试")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Swift代码分析测试")
+    logger.info("=" * 60)
 
-    print(f"\n提取实体: {len(entities)}个")
+    logger.info(f"\n提取实体: {len(entities)}个")
     for entity in entities:
-        print(f"  - {entity.type}: {entity.name}")
+        logger.info(f"  - {entity.type}: {entity.name}")
         if entity.signature:
-            print(f"    签名: {entity.signature}")
+            logger.info(f"    签名: {entity.signature}")
         if entity.metadata:
-            print(f"    元数据: {entity.metadata}")
+            logger.info(f"    元数据: {entity.metadata}")
 
-    print(f"\n提取关系: {len(relations)}个")
+    logger.info(f"\n提取关系: {len(relations)}个")
     for relation in relations:
-        print(f"  - {relation.relation_type}: {relation.source_id} → {relation.target_id}")
+        logger.info(f"  - {relation.relation_type}: {relation.source_id} → {relation.target_id}")
 
 
 if __name__ == "__main__":
